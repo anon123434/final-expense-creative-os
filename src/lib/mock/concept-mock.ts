@@ -1,0 +1,38 @@
+import type { ConceptRow } from "@/types/database";
+
+export const mockConceptRows: ConceptRow[] = [
+  {
+    id: "concept-1",
+    campaign_id: "camp-1",
+    title: "Don't Leave Your Family with the Burden",
+    one_sentence_angle: "Fear of financial burden on loved ones drives action.",
+    hook: "What happens to your family when you're gone?",
+    emotional_setup: "A widow reflects on the bills that piled up after her husband passed.",
+    conflict: "The average funeral costs over $8,000 — and most families aren't prepared.",
+    solution: "A simple plan that costs less than a dollar a day.",
+    payoff: "She made one phone call and protected her family forever.",
+    cta: "Call now to get your free information kit.",
+    trigger_map: { loss_aversion: true, guilt_avoidance: true, affordability: true },
+    visual_world: "Warm kitchen, soft lighting, family photos on the wall",
+    llm_raw: null,
+    is_selected: true,
+    created_at: "2025-12-02T00:00:00Z",
+  },
+  {
+    id: "concept-2",
+    campaign_id: "camp-1",
+    title: "The Promise She Kept",
+    one_sentence_angle: "A grandmother keeps her promise to never be a burden.",
+    hook: "She promised her kids she'd never leave them with debt.",
+    emotional_setup: "A grandmother sits at her kitchen table, looking at old family photos.",
+    conflict: "She didn't know how to keep that promise — until she saw this.",
+    solution: "Guaranteed acceptance, no health questions, affordable monthly payment.",
+    payoff: "Now her family will remember her love, not her bills.",
+    cta: "Call the number on your screen right now.",
+    trigger_map: { guilt_avoidance: true, simplicity: true, legitimacy: true },
+    visual_world: "Cozy living room, family gathering, golden hour lighting",
+    llm_raw: null,
+    is_selected: false,
+    created_at: "2025-12-02T00:00:00Z",
+  },
+];

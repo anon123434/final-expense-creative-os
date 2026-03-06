@@ -1,0 +1,413 @@
+/**
+ * Visual plan generation service.
+ *
+ * ── Provider: OpenAI API ─────────────────────────────────────────────────
+ *
+ * Takes a finalized script + campaign context and returns a full scene plan:
+ * overall direction, base layer, A-roll ideas, B-roll ideas, and a scene-by-scene
+ * breakdown with image prompts (Seedream / NanoBanana) and Kling video prompts.
+ *
+ * Falls back to template-based mock when OPENAI_API_KEY is not set.
+ *
+ * Prompt style rules are applied via prompt-style-guide.ts builders.
+ */
+
+import type { Campaign } from "@/types";
+import type { SceneCard } from "@/types/scene";
+import { buildImagePrompt, buildKlingPrompt } from "./prompt-style-guide";
+import { generateTextWithOpenAI, isProviderConfigured } from "@/lib/llm";
+
+// ── Service types ──────────────────────────────────────────────────────────
+
+export interface GenerateVisualPlanInput {
+  campaign: Campaign;
+  hook: string;
+  body: string;
+  cta: string;
+}
+
+export interface GeneratedVisualPlan {
+  overallDirection: string;
+  baseLayer: string;
+  aRollIdeas: string[];
+  bRollIdeas: string[];
+  scenes: SceneCard[];
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+function splitSentences(text: string): string[] {
+  return text
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function truncate(text: string, maxWords = 12): string {
+  const words = text.split(/\s+/);
+  return words.length <= maxWords ? text : words.slice(0, maxWords).join(" ") + "…";
+}
+
+// ── Scene templates ────────────────────────────────────────────────────────
+// Each template maps a script segment + index to a realistic scene plan.
+
+interface SceneTemplate {
+  sceneType: "A-roll" | "B-roll";
+  setting: string;
+  shotIdea: string;
+  emotion: string;
+  cameraStyle: string;
+  imageSuffix: string;
+  klingSuffix: string;
+}
+
+const HOOK_TEMPLATES: SceneTemplate[] = [
+  {
+    sceneType: "B-roll",
+    setting: "modest living room, warm evening",
+    shotIdea: "elderly woman sitting alone in armchair, looking at family photo",
+    emotion: "quiet grief, wistful memory",
+    cameraStyle: "50mm documentary realism, slight push-in",
+    imageSuffix:
+      "elderly woman in armchair holding family photograph, warm tungsten lamp behind her, dust particles in air, shallow depth of field",
+    klingSuffix:
+      "Her gaze drifts slowly from the photograph to the empty chair beside her. A quiet melancholic sigh. Very slow push-in.",
+  },
+  {
+    sceneType: "B-roll",
+    setting: "kitchen table, morning light",
+    shotIdea: "hands wrapped around a coffee mug, staring into the distance",
+    emotion: "contemplative worry",
+    cameraStyle: "50mm close-up, shallow depth of field",
+    imageSuffix:
+      "close-up of older hands wrapped around ceramic coffee mug, soft morning window light, shallow depth of field",
+    klingSuffix:
+      "Hands slowly rotate the coffee mug. Steam rises and curls gently. The person stares into middle distance. No camera movement.",
+  },
+];
+
+const BODY_TEMPLATES: SceneTemplate[] = [
+  {
+    sceneType: "B-roll",
+    setting: "family kitchen, warm afternoon",
+    shotIdea: "stack of unopened envelopes and bills on kitchen table",
+    emotion: "financial dread, overwhelm",
+    cameraStyle: "50mm medium shot, slow rack focus to bills",
+    imageSuffix:
+      "stack of unopened bills and envelopes on a worn kitchen table, afternoon window light, slightly desaturated",
+    klingSuffix:
+      "Camera slowly rack-focuses from a blurred family photo on the wall to the stack of bills in the foreground.",
+  },
+  {
+    sceneType: "B-roll",
+    setting: "funeral home exterior, overcast day",
+    shotIdea: "family members walking into funeral home, solemn expressions",
+    emotion: "grief, heaviness",
+    cameraStyle: "50mm observational, slight telephoto compression",
+    imageSuffix:
+      "family in dark clothing walking into a small funeral home, overcast natural light, muted color palette",
+    klingSuffix:
+      "The family walks slowly toward the entrance. One person pauses at the door, visibly composing themselves.",
+  },
+  {
+    sceneType: "A-roll",
+    setting: "comfortable lived-in living room, midday",
+    shotIdea: "spokesperson speaking directly to camera, warm and earnest",
+    emotion: "sincerity, empathy, authority",
+    cameraStyle: "50mm medium close-up, eye-level",
+    imageSuffix:
+      "friendly spokesperson seated in a comfortable lived-in living room, eye-level framing, warm practical lamp light, natural direct eye contact",
+    klingSuffix:
+      "The spokesperson speaks earnestly and directly to camera. Subtle natural breathing movement. Occasional small hand gesture. No camera movement.",
+  },
+  {
+    sceneType: "B-roll",
+    setting: "backyard, golden hour",
+    shotIdea: "grandparent playing with grandchildren on grass",
+    emotion: "joy, love, protection",
+    cameraStyle: "50mm candid, golden hour backlight",
+    imageSuffix:
+      "grandparent on backyard grass playing with young grandchildren, golden hour backlight, candid and unposed",
+    klingSuffix:
+      "The grandparent gently tosses a ball to a grandchild. A small natural laugh. Golden hour backlight. No sudden movement.",
+  },
+  {
+    sceneType: "B-roll",
+    setting: "kitchen, morning",
+    shotIdea: "woman on phone, relief washing over her face",
+    emotion: "relief, hope, resolution",
+    cameraStyle: "50mm medium shot, slow push-in on face",
+    imageSuffix:
+      "woman on phone in a modest kitchen, expression shifting to relief and calm, warm morning window light",
+    klingSuffix:
+      "The woman listens to the phone, her expression shifting from anxious to visibly relieved. A slow exhale. Very slow push-in.",
+  },
+];
+
+const CTA_TEMPLATE: SceneTemplate = {
+  sceneType: "A-roll",
+  setting: "comfortable, modest living room",
+  shotIdea: "spokesperson delivers call-to-action directly to camera",
+  emotion: "urgency with warmth, actionable",
+  cameraStyle: "50mm medium shot, static",
+  imageSuffix:
+    "spokesperson in a comfortable modest living room, warm and direct expression, natural eye contact with camera, phone number lower-third",
+  klingSuffix:
+    "The spokesperson delivers the call-to-action with calm sincerity. A deliberate nod. Static camera. Phone number graphic fades in lower-third.",
+};
+
+// ── System prompt ────────────────────────────────────────────────────────
+
+const SYSTEM = `You are an expert visual director specialising in direct-response TV and social media ads for final expense insurance.
+
+Given a script (hook, body, CTA) and campaign context, produce a complete visual plan.
+
+Return a JSON object with these exact keys:
+
+{
+  "overallDirection": "2-3 sentence visual direction note covering tone, color palette, lighting approach, and pacing philosophy",
+  "baseLayer": "1 sentence on footage sourcing strategy (stock + custom, text overlays, color grade)",
+  "aRollIdeas": ["3-4 direct-to-camera or spokesperson ideas"],
+  "bRollIdeas": ["4-6 emotional cutaway / insert ideas"],
+  "scenes": [
+    {
+      "sceneNumber": 1,
+      "lineReference": "first few words of the script line…",
+      "sceneType": "A-roll" or "B-roll",
+      "setting": "specific location, time of day, light source",
+      "shotIdea": "what we see in this shot",
+      "emotion": "emotional tone for this moment",
+      "cameraStyle": "lens, framing, movement",
+      "image_prompt": "rich visual description of the still image — subject, setting, framing, light quality. Tool-agnostic, no style rules.",
+      "kling_prompt": "motion description — what physical movement occurs, camera action, pacing. Documentary realism, subtle movement only."
+    }
+  ]
+}
+
+IMPORTANT RULES:
+- Create one scene per script sentence. Map every sentence to a scene.
+- image_prompt: describe the subject, environment, framing, and lighting. DO NOT include "50mm", "documentary", "no watermarks", "16:9" — those are applied automatically by our pipeline.
+- kling_prompt: describe what moves and how (a hand, a glance, a breath), plus camera action (slow push-in, static hold, slow pan). Prioritize documentary realism with subtle, grounded movement. DO NOT include "stabilized camera", "no shake", "50mm" — those are applied automatically.
+- A-roll scenes should note direct eye contact with camera.
+- B-roll scenes should feel observational and candid.
+- Build an emotional arc across the scene sequence.
+- No markdown fences, no commentary — only valid JSON.`;
+
+// ── Prompt builder ───────────────────────────────────────────────────────
+
+function buildVisualPlanPrompt(input: GenerateVisualPlanInput): string {
+  const { campaign, hook, body, cta } = input;
+  return `Campaign:
+- Persona: ${campaign.personaId ?? "general"}
+- Emotional tone: ${campaign.emotionalTone ?? "warm and empathetic"}
+- Duration target: ${campaign.durationSeconds ?? 30}s
+- Phone: ${campaign.phoneNumber ?? "1-800-555-0100"}
+
+Script:
+HOOK: ${hook}
+BODY: ${body}
+CTA: ${cta}
+
+Create a scene-by-scene visual plan now.`;
+}
+
+// ── Response parser ──────────────────────────────────────────────────────
+
+interface RawSceneResponse {
+  sceneNumber?: unknown;
+  lineReference?: unknown;
+  sceneType?: unknown;
+  setting?: unknown;
+  shotIdea?: unknown;
+  emotion?: unknown;
+  cameraStyle?: unknown;
+  image_prompt?: unknown;
+  kling_prompt?: unknown;
+  // Legacy field names
+  imageDesc?: unknown;
+  klingDesc?: unknown;
+}
+
+function parseVisualPlanResponse(text: string): GeneratedVisualPlan {
+  const trimmed = text.trim().replace(/^```json?\s*/i, "").replace(/```\s*$/, "");
+
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(trimmed);
+  } catch {
+    throw new Error(
+      `OpenAI returned invalid JSON for visual plan generation. Raw response: ${text.slice(0, 200)}`
+    );
+  }
+
+  const rawScenes = parsed.scenes;
+  if (!Array.isArray(rawScenes) || rawScenes.length === 0) {
+    throw new Error("OpenAI returned no scenes in visual plan response.");
+  }
+
+  const scenes: SceneCard[] = (rawScenes as RawSceneResponse[]).map((s) => {
+    const sceneType = String(s.sceneType ?? "B-roll") as "A-roll" | "B-roll";
+
+    // Accept both new (image_prompt/kling_prompt) and legacy (imageDesc/klingDesc) field names
+    const rawImage = String(s.image_prompt ?? s.imageDesc ?? "");
+    const rawKling = String(s.kling_prompt ?? s.klingDesc ?? "");
+
+    return {
+      sceneNumber: Number(s.sceneNumber ?? 1),
+      lineReference: String(s.lineReference ?? ""),
+      sceneType,
+      setting: String(s.setting ?? ""),
+      shotIdea: String(s.shotIdea ?? ""),
+      emotion: String(s.emotion ?? ""),
+      cameraStyle: String(s.cameraStyle ?? ""),
+      imagePrompt: buildImagePrompt(rawImage, sceneType === "A-roll"),
+      klingPrompt: buildKlingPrompt(rawKling),
+    };
+  });
+
+  return {
+    overallDirection: String(parsed.overallDirection ?? ""),
+    baseLayer: String(parsed.baseLayer ?? ""),
+    aRollIdeas: Array.isArray(parsed.aRollIdeas) ? parsed.aRollIdeas.map(String) : [],
+    bRollIdeas: Array.isArray(parsed.bRollIdeas) ? parsed.bRollIdeas.map(String) : [],
+    scenes,
+  };
+}
+
+// ── Mock implementation ────────────────────────────────────────────────────
+
+function mockVisualPlan(input: GenerateVisualPlanInput): GeneratedVisualPlan {
+
+  const { campaign, hook, body, cta } = input;
+
+  const bodySentences = splitSentences(body);
+
+  // ── Overall direction ──────────────────────────────────────────────────
+  const overallDirection = [
+    `Warm, emotionally grounded, kitchen-table realism.`,
+    `50mm documentary look throughout — no stylized cinematography.`,
+    `Lighting: warm tungsten and practical sources, golden hour for exterior B-roll.`,
+    `Color palette: muted warmth, slightly desaturated problem scenes, richer tones on resolution and CTA.`,
+    `Pacing: slow and deliberate — silence and stillness do emotional work.`,
+    campaign.durationSeconds
+      ? `Target runtime: ${campaign.durationSeconds} seconds. Every scene earns its frame.`
+      : `Tight edit — only essential images. Every scene earns its frame.`,
+  ].join(" ");
+
+  // ── Base layer ─────────────────────────────────────────────────────────
+  const baseLayer = `High-quality stock footage base (Storyblocks / Artgrid) with select custom A-roll. Minimal text overlays — phone number lower-third on CTA only. No motion graphics. Subtle cinematic color grade throughout.`;
+
+  // ── A-roll ideas ───────────────────────────────────────────────────────
+  const aRollIdeas = [
+    `Spokesperson — warm, authoritative, direct-to-camera (medium close-up, 50mm, eye-level)`,
+    `Couple seated at kitchen table reviewing documents together — candid, not posed`,
+    `Phone call moment — expression of relief after speaking with agent`,
+    campaign.phoneNumber
+      ? `Final CTA frame with phone number ${campaign.phoneNumber} in clean lower-third`
+      : `Final CTA frame with phone number in clean lower-third`,
+  ];
+
+  // ── B-roll ideas ───────────────────────────────────────────────────────
+  const bRollIdeas = [
+    `Elderly hands holding family photograph — tight 50mm close-up, tungsten light`,
+    `Stack of bills on kitchen table — rack focus from family photo to bills`,
+    `Grandparent with grandchildren — golden hour backyard, candid movement`,
+    `Couple reviewing insurance paperwork with relief — warm kitchen light`,
+    `Funeral home exterior — overcast, observational, muted palette`,
+    `Empty chair in living room — symbolic, minimal, poetic`,
+  ];
+
+  // ── Scene breakdown ────────────────────────────────────────────────────
+  const scenes: SceneCard[] = [];
+  let sceneNumber = 1;
+
+  // Hook scenes
+  const hookTemplate = HOOK_TEMPLATES[sceneNumber % HOOK_TEMPLATES.length];
+  scenes.push({
+    sceneNumber: sceneNumber++,
+    lineReference: truncate(hook),
+    sceneType: hookTemplate.sceneType,
+    setting: hookTemplate.setting,
+    shotIdea: hookTemplate.shotIdea,
+    emotion: hookTemplate.emotion,
+    cameraStyle: hookTemplate.cameraStyle,
+    imagePrompt: buildImagePrompt(
+      `${hookTemplate.setting}. ${hookTemplate.imageSuffix}`,
+      hookTemplate.sceneType === "A-roll"
+    ),
+    klingPrompt: buildKlingPrompt(hookTemplate.klingSuffix),
+  });
+
+  // Body scenes — one per sentence, cycling through body templates
+  bodySentences.forEach((sentence, i) => {
+    const tmpl = BODY_TEMPLATES[i % BODY_TEMPLATES.length];
+    scenes.push({
+      sceneNumber: sceneNumber++,
+      lineReference: truncate(sentence),
+      sceneType: tmpl.sceneType,
+      setting: tmpl.setting,
+      shotIdea: tmpl.shotIdea,
+      emotion: tmpl.emotion,
+      cameraStyle: tmpl.cameraStyle,
+      imagePrompt: buildImagePrompt(
+        `${tmpl.setting}. ${tmpl.imageSuffix}`,
+        tmpl.sceneType === "A-roll"
+      ),
+      klingPrompt: buildKlingPrompt(tmpl.klingSuffix),
+    });
+  });
+
+  // CTA scene
+  const phoneRef = campaign.phoneNumber ? ` Call ${campaign.phoneNumber}.` : "";
+  scenes.push({
+    sceneNumber: sceneNumber,
+    lineReference: truncate(cta + phoneRef),
+    sceneType: CTA_TEMPLATE.sceneType,
+    setting: CTA_TEMPLATE.setting,
+    shotIdea: CTA_TEMPLATE.shotIdea,
+    emotion: CTA_TEMPLATE.emotion,
+    cameraStyle: CTA_TEMPLATE.cameraStyle,
+    imagePrompt: buildImagePrompt(
+      `${CTA_TEMPLATE.setting}. ${CTA_TEMPLATE.imageSuffix}`,
+      true
+    ),
+    klingPrompt: buildKlingPrompt(CTA_TEMPLATE.klingSuffix),
+  });
+
+  return {
+    overallDirection,
+    baseLayer,
+    aRollIdeas,
+    bRollIdeas,
+    scenes,
+  };
+}
+
+// ── Public API ───────────────────────────────────────────────────────────
+
+/**
+ * Generates a visual plan (scene breakdown + prompts) for a script.
+ * Uses OpenAI API when OPENAI_API_KEY is set, otherwise returns template-based mock.
+ */
+export async function generateVisualPlan(
+  input: GenerateVisualPlanInput
+): Promise<GeneratedVisualPlan> {
+  // ── OpenAI API path ──────────────────────────────────────────────────
+  if (isProviderConfigured("generateVisualPlan")) {
+    try {
+      const raw = await generateTextWithOpenAI({
+        system: SYSTEM,
+        prompt: buildVisualPlanPrompt(input),
+        maxTokens: 8192,
+        temperature: 0.6,
+      });
+      return parseVisualPlanResponse(raw);
+    } catch (err) {
+      console.error("[generateVisualPlan] OpenAI error, falling back to mock:", err);
+    }
+  }
+
+  // ── Mock fallback ────────────────────────────────────────────────────
+  await new Promise((r) => setTimeout(r, 1400));
+  return mockVisualPlan(input);
+}

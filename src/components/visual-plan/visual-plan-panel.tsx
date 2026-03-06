@@ -1,0 +1,398 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { Film, Save, AlertCircle, ChevronDown, CheckCircle2, Circle, ExpandIcon } from "lucide-react";
+import { useRef, useEffect } from "react";
+import type { Script, VisualPlan } from "@/types";
+import type { SceneCard } from "@/types/scene";
+import { SceneCardItem } from "./scene-card";
+import { generateVisualPlanAction, saveVisualPlanAction } from "@/app/actions/visual-plan";
+import { cn } from "@/lib/utils";
+import { ProviderBadge } from "@/components/ui/provider-badge";
+
+interface VisualPlanPanelProps {
+  campaignId: string;
+  scripts: Script[];
+  initialPlan: VisualPlan | null;
+  initialScriptId: string | null;
+}
+
+export function VisualPlanPanel({
+  campaignId,
+  scripts,
+  initialPlan,
+  initialScriptId,
+}: VisualPlanPanelProps) {
+  const [scriptId, setScriptId] = useState<string | null>(initialScriptId);
+  const [plan, setPlan] = useState<VisualPlan | null>(initialPlan);
+
+  // Editable top-level fields
+  const [overallDirection, setOverallDirection] = useState(initialPlan?.overallDirection ?? "");
+  const [baseLayer, setBaseLayer] = useState(initialPlan?.baseLayer ?? "");
+  const [scenes, setScenes] = useState<SceneCard[]>(initialPlan?.sceneBreakdown ?? []);
+
+  const [isDirty, setIsDirty] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saved">("idle");
+  const [error, setError] = useState<string | null>(null);
+
+  const [generating, startGenerating] = useTransition();
+  const [saving, startSaving] = useTransition();
+
+  const loading = generating || saving;
+
+  function handleScriptChange(id: string) {
+    setScriptId(id);
+    setPlan(null);
+    setScenes([]);
+    setOverallDirection("");
+    setBaseLayer("");
+    setIsDirty(false);
+    setError(null);
+    setSaveStatus("idle");
+  }
+
+  function handleGenerate() {
+    if (!scriptId) return;
+    setError(null);
+    setSaveStatus("idle");
+    startGenerating(async () => {
+      const result = await generateVisualPlanAction(campaignId, scriptId);
+      if (result.success) {
+        setPlan(result.plan);
+        setOverallDirection(result.plan.overallDirection ?? "");
+        setBaseLayer(result.plan.baseLayer ?? "");
+        setScenes(result.plan.sceneBreakdown ?? []);
+        setIsDirty(false);
+      } else {
+        setError(result.error);
+      }
+    });
+  }
+
+  function handleSceneChange(updated: SceneCard) {
+    setScenes((prev) =>
+      prev.map((s) => (s.sceneNumber === updated.sceneNumber ? updated : s))
+    );
+    setIsDirty(true);
+    setSaveStatus("idle");
+  }
+
+  function handleSave() {
+    if (!scriptId || !plan) return;
+    setError(null);
+    startSaving(async () => {
+      const result = await saveVisualPlanAction(
+        campaignId,
+        scriptId,
+        overallDirection,
+        baseLayer,
+        plan.aRoll ?? [],
+        plan.bRoll ?? [],
+        scenes
+      );
+      if (result.success) {
+        setIsDirty(false);
+        setSaveStatus("saved");
+        setTimeout(() => setSaveStatus("idle"), 2500);
+      } else {
+        setError(result.error);
+      }
+    });
+  }
+
+  const hasPlan = scenes.length > 0;
+
+  if (scripts.length === 0) {
+    return (
+      <div className="mx-auto max-w-4xl">
+        <EmptyState
+          icon={Film}
+          title="No scripts yet"
+          description="Generate a script on the Script tab first, then come back to build the visual plan."
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-4xl space-y-6">
+      {/* Script selector + generate */}
+      <section className="space-y-2">
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Source Script
+          </label>
+          <ProviderBadge provider="openai" />
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex-1">
+            <ScriptPicker
+              scripts={scripts}
+              selectedId={scriptId}
+              onSelect={handleScriptChange}
+              disabled={loading}
+            />
+          </div>
+          <button
+            type="button"
+            disabled={!scriptId || loading}
+            onClick={handleGenerate}
+            className={cn(
+              "inline-flex shrink-0 items-center gap-2 rounded-md px-4 py-2 text-sm font-medium",
+              "bg-primary text-primary-foreground hover:bg-primary/90",
+              "disabled:cursor-not-allowed disabled:opacity-50",
+              "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+            )}
+          >
+            <Film className={cn("h-4 w-4", generating && "animate-pulse")} />
+            {generating ? "Generating…" : hasPlan ? "Regenerate" : "Generate Visual Plan"}
+          </button>
+        </div>
+      </section>
+
+      {/* Error */}
+      {error && (
+        <div className="flex items-start gap-2 rounded-md border border-destructive/50 bg-destructive/5 px-3 py-2.5 text-sm text-destructive">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {/* Generating skeleton */}
+      {generating && (
+        <div className="space-y-3 animate-pulse">
+          <div className="h-16 rounded-lg bg-muted" />
+          <div className="h-16 rounded-lg bg-muted" />
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="h-14 rounded-lg bg-muted" />
+          ))}
+        </div>
+      )}
+
+      {/* Plan content */}
+      {hasPlan && !generating && (
+        <>
+          {/* Direction + base layer */}
+          <section className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Overall Visual Direction
+              </label>
+              <textarea
+                value={overallDirection}
+                rows={5}
+                onChange={(e) => { setOverallDirection(e.target.value); setIsDirty(true); setSaveStatus("idle"); }}
+                className="w-full resize-none rounded-md border bg-background px-3 py-2 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Base Layer & Production Notes
+              </label>
+              <textarea
+                value={baseLayer}
+                rows={5}
+                onChange={(e) => { setBaseLayer(e.target.value); setIsDirty(true); setSaveStatus("idle"); }}
+                className="w-full resize-none rounded-md border bg-background px-3 py-2 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+              />
+            </div>
+          </section>
+
+          {/* A/B roll idea lists */}
+          {(plan?.aRoll?.length || plan?.bRoll?.length) && (
+            <section className="grid grid-cols-2 gap-4">
+              {plan.aRoll && plan.aRoll.length > 0 && (
+                <IdeaList label="A-Roll Ideas" items={plan.aRoll} accentColor="blue" />
+              )}
+              {plan.bRoll && plan.bRoll.length > 0 && (
+                <IdeaList label="B-Roll Ideas" items={plan.bRoll} accentColor="amber" />
+              )}
+            </section>
+          )}
+
+          {/* Scene breakdown */}
+          <section className="space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Scene Breakdown — {scenes.length} scenes
+              </p>
+              <ExpandAllButton scenes={scenes} />
+            </div>
+            <div className="space-y-2">
+              {scenes.map((scene) => (
+                <SceneCardItem
+                  key={scene.sceneNumber}
+                  scene={scene}
+                  onChange={handleSceneChange}
+                />
+              ))}
+            </div>
+          </section>
+
+          {/* Save bar */}
+          <div className="flex items-center justify-between border-t pt-4">
+            <span className="text-xs text-muted-foreground">
+              {saveStatus === "saved"
+                ? "Saved!"
+                : isDirty
+                ? "Unsaved changes"
+                : "No unsaved changes"}
+            </span>
+            <button
+              type="button"
+              disabled={!isDirty || loading}
+              onClick={handleSave}
+              className={cn(
+                "inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium",
+                "hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50",
+                "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+              )}
+            >
+              <Save className="h-4 w-4" />
+              {saving ? "Saving…" : "Save All Changes"}
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* Empty states */}
+      {!hasPlan && !generating && scriptId && (
+        <EmptyState
+          icon={Film}
+          title="Ready to generate"
+          description='Click "Generate Visual Plan" to build a scene-by-scene visual direction from this script.'
+        />
+      )}
+      {!hasPlan && !generating && !scriptId && (
+        <EmptyState
+          icon={Film}
+          title="Select a script above"
+          description="Choose which script to build the visual plan from."
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Idea list ──────────────────────────────────────────────────────────────
+
+function IdeaList({
+  label,
+  items,
+  accentColor,
+}: {
+  label: string;
+  items: string[];
+  accentColor: "blue" | "amber";
+}) {
+  const dot = accentColor === "blue" ? "bg-blue-400" : "bg-amber-400";
+  return (
+    <div className="space-y-1.5">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        {label}
+      </p>
+      <ul className="space-y-1 rounded-md border bg-muted/20 px-3 py-2">
+        {items.map((item, i) => (
+          <li key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
+            <span className={cn("mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full", dot)} />
+            {item}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// ── Expand all button ──────────────────────────────────────────────────────
+// Note: scene cards manage their own open state; this is a hint to the user.
+
+function ExpandAllButton({ scenes }: { scenes: SceneCard[] }) {
+  return (
+    <span className="text-xs text-muted-foreground">
+      Click a scene to edit — {scenes.filter((s) => s.sceneType === "A-roll").length} A-roll ·{" "}
+      {scenes.filter((s) => s.sceneType === "B-roll").length} B-roll
+    </span>
+  );
+}
+
+// ── Script picker ──────────────────────────────────────────────────────────
+
+interface ScriptPickerProps {
+  scripts: Script[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  disabled?: boolean;
+}
+
+function ScriptPicker({ scripts, selectedId, onSelect, disabled }: ScriptPickerProps) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const selected = scripts.find((s) => s.id === selectedId) ?? null;
+
+  useEffect(() => {
+    function handle(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setOpen((v) => !v)}
+        className="flex h-10 w-full items-center justify-between rounded-md border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <span className={selected ? "text-foreground" : "text-muted-foreground"}>
+          {selected ? (selected.versionName ?? `Script ${selected.id.slice(-6)}`) : "Select a script…"}
+        </span>
+        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 top-full z-50 mt-1 w-full rounded-md border bg-popover shadow-md">
+          <ul className="py-1">
+            {scripts.map((script) => (
+              <li key={script.id}>
+                <button
+                  type="button"
+                  onClick={() => { onSelect(script.id); setOpen(false); }}
+                  className={cn(
+                    "flex w-full items-start gap-3 px-3 py-2.5 text-left text-sm hover:bg-accent",
+                    script.id === selectedId && "bg-accent/50"
+                  )}
+                >
+                  <span className="mt-0.5 shrink-0">
+                    {script.id === selectedId
+                      ? <CheckCircle2 className="h-4 w-4 text-primary" />
+                      : <Circle className="h-4 w-4 text-muted-foreground" />}
+                  </span>
+                  <span className="flex flex-col">
+                    <span className="font-medium">{script.versionName ?? `Script ${script.id.slice(-6)}`}</span>
+                    {script.hook && (
+                      <span className="line-clamp-1 text-xs text-muted-foreground">{script.hook}</span>
+                    )}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Empty state ────────────────────────────────────────────────────────────
+
+function EmptyState({ icon: Icon, title, description }: { icon: React.ElementType; title: string; description: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-16 text-center">
+      <Icon className="mb-3 h-8 w-8 text-muted-foreground/40" />
+      <p className="text-sm font-medium">{title}</p>
+      <p className="mt-1 max-w-xs text-xs text-muted-foreground">{description}</p>
+    </div>
+  );
+}
