@@ -1,11 +1,13 @@
 "use server";
 
-import { DEFAULT_USER_ID } from "@/lib/config/env";
 import { getSettingsByUserId, upsertSettings } from "@/lib/repositories/settings-repo";
 import { resetLLMClients } from "@/lib/llm/providers/reset";
 import type { SettingsKeyStatus, SettingsFormData } from "@/types/settings";
 import type { FailResult } from "@/lib/result";
 import { actionFail } from "@/lib/result";
+
+/** Valid UUID used for local single-user mode (no auth). */
+const LOCAL_USER_ID = "00000000-0000-0000-0000-000000000001";
 
 // ── Load (returns masked status, never raw keys) ─────────────────────────
 
@@ -13,8 +15,7 @@ export async function getSettingsStatusAction(): Promise<
   { success: true; status: SettingsKeyStatus; maskedKeys: Record<string, string> } | FailResult
 > {
   try {
-    const userId = DEFAULT_USER_ID;
-    const settings = await getSettingsByUserId(userId);
+    const settings = await getSettingsByUserId(LOCAL_USER_ID);
 
     const mask = (key: string | null): string => {
       if (!key) return "";
@@ -56,10 +57,8 @@ export async function saveSettingsAction(
   formData: SettingsFormData
 ): Promise<{ success: true } | FailResult> {
   try {
-    const userId = DEFAULT_USER_ID;
-
     // Load existing settings to merge unchanged fields
-    const existing = await getSettingsByUserId(userId);
+    const existing = await getSettingsByUserId(LOCAL_USER_ID);
 
     function resolveKey(
       newValue: string,
@@ -73,7 +72,7 @@ export async function saveSettingsAction(
       return newValue.trim();
     }
 
-    await upsertSettings(userId, {
+    await upsertSettings(LOCAL_USER_ID, {
       claudeApiKey: resolveKey(formData.claudeApiKey, existing?.claudeApiKey ?? null),
       openaiApiKey: resolveKey(formData.openaiApiKey, existing?.openaiApiKey ?? null),
       elevenlabsApiKey: resolveKey(formData.elevenlabsApiKey, existing?.elevenlabsApiKey ?? null),

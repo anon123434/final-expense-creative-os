@@ -1,6 +1,6 @@
 import type { CampaignRow, CampaignTriggerRow } from "@/types/database";
 
-const MOCK_USER_ID = "user-mock-001";
+const MOCK_USER_ID = "00000000-0000-0000-0000-000000000001";
 
 export const mockCampaignRows: CampaignRow[] = [
   {

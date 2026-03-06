@@ -30,7 +30,7 @@
  * Default user ID used for all database operations in single-user mode.
  * When auth is re-added, replace usages with the authenticated user's ID.
  */
-export const DEFAULT_USER_ID = "00000000-0000-0000-0000-000000000000";
+export const DEFAULT_USER_ID = "00000000-0000-0000-0000-000000000001";
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
