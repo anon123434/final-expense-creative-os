@@ -4,74 +4,63 @@
  */
 
 import type { Campaign, CampaignFormData, CampaignTrigger } from "@/types";
-import type { CampaignRow } from "@/types/database";
+import type { CampaignRow, CampaignTriggerRow } from "@/types/database";
 import { toCampaign, toCampaignTrigger } from "@/lib/mappers";
 import { mockCampaignRows, mockCampaignTriggerRows } from "@/lib/mock/campaigns";
-import { hasSupabaseConfig, getSupabaseServerClient } from "@/lib/supabase/repo-helpers";
+import { withSupabase, hasSupabaseConfig, getSupabaseServerClient } from "@/lib/supabase/repo-helpers";
 
-export async function getCampaigns(userId: string): Promise<Campaign[]> {
-  if (hasSupabaseConfig()) {
-    const supabase = await getSupabaseServerClient();
-    const { data, error } = await supabase
-      .from("campaigns")
-      .select("*")
-      .eq("user_id", userId)
-      .order("updated_at", { ascending: false });
-
-    if (!error && data) return (data as CampaignRow[]).map(toCampaign);
-    console.warn("Supabase getCampaigns failed, using mock:", error?.message);
-  }
+export async function getCampaigns(_userId?: string): Promise<Campaign[]> {
+  const data = await withSupabase<CampaignRow[]>("getCampaigns", (supabase) =>
+    supabase.from("campaigns").select("*").order("updated_at", { ascending: false })
+  );
+  if (data) return data.map(toCampaign);
 
   await new Promise((r) => setTimeout(r, 200));
-  return mockCampaignRows.filter((r) => r.user_id === userId).map(toCampaign);
+  return mockCampaignRows.map(toCampaign);
 }
 
 export async function getCampaignById(id: string): Promise<Campaign | null> {
-  if (hasSupabaseConfig()) {
-    const supabase = await getSupabaseServerClient();
-    const { data, error } = await supabase
-      .from("campaigns")
-      .select("*")
-      .eq("id", id)
-      .single();
-
-    if (!error && data) return toCampaign(data as CampaignRow);
-    if (error?.code !== "PGRST116") {
-      console.warn("Supabase getCampaignById failed, using mock:", error?.message);
-    }
-  }
+  const data = await withSupabase<CampaignRow>("getCampaignById", (supabase) =>
+    supabase.from("campaigns").select("*").eq("id", id).single()
+  );
+  if (data) return toCampaign(data);
 
   await new Promise((r) => setTimeout(r, 100));
   const row = mockCampaignRows.find((r) => r.id === id);
   return row ? toCampaign(row) : null;
 }
 
-export async function createCampaign(userId: string, data: CampaignFormData): Promise<Campaign> {
+export async function createCampaign(userId: string, formData: CampaignFormData): Promise<Campaign> {
   if (hasSupabaseConfig()) {
-    const supabase = await getSupabaseServerClient();
-    const { data: row, error } = await supabase
-      .from("campaigns")
-      .insert({
-        user_id: userId,
-        title: data.title,
-        offer_name: data.offerName ?? null,
-        persona_id: data.personaId ?? null,
-        archetype_id: data.archetypeId ?? null,
-        emotional_tone: data.emotionalTone ?? null,
-        duration_seconds: data.durationSeconds ?? null,
-        phone_number: data.phoneNumber ?? null,
-        phone_number_phonetic: data.phoneNumberPhonetic ?? null,
-        deadline_text: data.deadlineText ?? null,
-        benefit_amount: data.benefitAmount ?? null,
-        affordability_text: data.affordabilityText ?? null,
-        cta_style: data.ctaStyle ?? null,
-        notes: data.notes ?? null,
-      })
-      .select()
-      .single();
+    try {
+      const supabase = await getSupabaseServerClient();
+      const { data: row, error } = await supabase
+        .from("campaigns")
+        .insert({
+          user_id: userId,
+          title: formData.title,
+          offer_name: formData.offerName ?? null,
+          persona_id: formData.personaId ?? null,
+          archetype_id: formData.archetypeId ?? null,
+          emotional_tone: formData.emotionalTone ?? null,
+          duration_seconds: formData.durationSeconds ?? null,
+          phone_number: formData.phoneNumber ?? null,
+          phone_number_phonetic: formData.phoneNumberPhonetic ?? null,
+          deadline_text: formData.deadlineText ?? null,
+          benefit_amount: formData.benefitAmount ?? null,
+          affordability_text: formData.affordabilityText ?? null,
+          cta_style: formData.ctaStyle ?? null,
+          notes: formData.notes ?? null,
+        })
+        .select()
+        .single();
 
-    if (!error && row) return toCampaign(row as CampaignRow);
-    console.warn("Supabase createCampaign failed, using mock:", error?.message);
+      if (!error && row) return toCampaign(row as CampaignRow);
+      console.warn("[Supabase] createCampaign failed:", error?.message);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[Supabase] createCampaign network/client error: ${msg}`);
+    }
   }
 
   await new Promise((r) => setTimeout(r, 300));
@@ -79,19 +68,19 @@ export async function createCampaign(userId: string, data: CampaignFormData): Pr
   return {
     id: `camp-${Date.now()}`,
     userId,
-    title: data.title,
-    offerName: data.offerName ?? null,
-    personaId: data.personaId ?? null,
-    archetypeId: data.archetypeId ?? null,
-    emotionalTone: data.emotionalTone ?? null,
-    durationSeconds: data.durationSeconds ?? null,
-    phoneNumber: data.phoneNumber ?? null,
-    phoneNumberPhonetic: data.phoneNumberPhonetic ?? null,
-    deadlineText: data.deadlineText ?? null,
-    benefitAmount: data.benefitAmount ?? null,
-    affordabilityText: data.affordabilityText ?? null,
-    ctaStyle: data.ctaStyle ?? null,
-    notes: data.notes ?? null,
+    title: formData.title,
+    offerName: formData.offerName ?? null,
+    personaId: formData.personaId ?? null,
+    archetypeId: formData.archetypeId ?? null,
+    emotionalTone: formData.emotionalTone ?? null,
+    durationSeconds: formData.durationSeconds ?? null,
+    phoneNumber: formData.phoneNumber ?? null,
+    phoneNumberPhonetic: formData.phoneNumberPhonetic ?? null,
+    deadlineText: formData.deadlineText ?? null,
+    benefitAmount: formData.benefitAmount ?? null,
+    affordabilityText: formData.affordabilityText ?? null,
+    ctaStyle: formData.ctaStyle ?? null,
+    notes: formData.notes ?? null,
     createdAt: now,
     updatedAt: now,
   };
@@ -99,7 +88,7 @@ export async function createCampaign(userId: string, data: CampaignFormData): Pr
 
 export async function duplicateCampaign(id: string, userId: string): Promise<Campaign | null> {
   const source = await getCampaignById(id);
-  if (!source || source.userId !== userId) return null;
+  if (!source) return null;
 
   const copy: CampaignFormData = {
     title: `${source.title} (Copy)`,
@@ -131,34 +120,33 @@ export async function saveCampaignTriggers(
   triggers: { triggerKey: string; included: boolean }[]
 ): Promise<void> {
   if (hasSupabaseConfig()) {
-    const supabase = await getSupabaseServerClient();
-    await supabase.from("campaign_triggers").delete().eq("campaign_id", campaignId);
-    if (triggers.length > 0) {
-      const { error } = await supabase.from("campaign_triggers").insert(
-        triggers.map((t) => ({
-          campaign_id: campaignId,
-          trigger_key: t.triggerKey,
-          included: t.included,
-        }))
-      );
-      if (error) console.warn("Supabase saveCampaignTriggers insert failed:", error.message);
+    try {
+      const supabase = await getSupabaseServerClient();
+      await supabase.from("campaign_triggers").delete().eq("campaign_id", campaignId);
+      if (triggers.length > 0) {
+        const { error } = await supabase.from("campaign_triggers").insert(
+          triggers.map((t) => ({
+            campaign_id: campaignId,
+            trigger_key: t.triggerKey,
+            included: t.included,
+          }))
+        );
+        if (error) console.warn("[Supabase] saveCampaignTriggers insert failed:", error.message);
+      }
+      return;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[Supabase] saveCampaignTriggers network/client error: ${msg}`);
     }
-    return;
   }
   await new Promise((r) => setTimeout(r, 50));
 }
 
 export async function getTriggersByCampaign(campaignId: string): Promise<CampaignTrigger[]> {
-  if (hasSupabaseConfig()) {
-    const supabase = await getSupabaseServerClient();
-    const { data, error } = await supabase
-      .from("campaign_triggers")
-      .select("*")
-      .eq("campaign_id", campaignId);
-
-    if (!error && data) return data.map(toCampaignTrigger);
-    console.warn("Supabase getTriggersByCampaign failed, using mock:", error?.message);
-  }
+  const data = await withSupabase<CampaignTriggerRow[]>("getTriggersByCampaign", (supabase) =>
+    supabase.from("campaign_triggers").select("*").eq("campaign_id", campaignId)
+  );
+  if (data) return data.map(toCampaignTrigger);
 
   await new Promise((r) => setTimeout(r, 100));
   return mockCampaignTriggerRows

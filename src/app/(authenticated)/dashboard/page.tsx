@@ -6,20 +6,10 @@ import type { CampaignRow } from "@/components/campaign/campaign-table";
 import { getCampaigns } from "@/lib/repositories";
 import { getPersonaByKey } from "@/lib/seed/personas";
 import { getArchetypeByKey } from "@/lib/seed/archetypes";
-import { createClient } from "@/lib/supabase/server";
-
-async function getCurrentUserId(): Promise<string> {
-  try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    return user?.id ?? "user-mock-001";
-  } catch {
-    return "user-mock-001";
-  }
-}
+import { DEFAULT_USER_ID } from "@/lib/config/env";
 
 export default async function DashboardPage() {
-  const userId = await getCurrentUserId();
+  const userId = DEFAULT_USER_ID;
   const campaigns = await getCampaigns(userId);
 
   const rows: CampaignRow[] = campaigns.map((c) => ({

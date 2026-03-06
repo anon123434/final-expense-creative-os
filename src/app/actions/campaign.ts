@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { DEFAULT_USER_ID } from "@/lib/config/env";
 import { duplicateCampaign, createCampaign, saveCampaignTriggers } from "@/lib/repositories/campaign-repo";
 import type { FailResult } from "@/lib/result";
 import { actionFail } from "@/lib/result";
@@ -13,9 +13,7 @@ export async function createCampaignAction(
   values: CampaignFormValues
 ): Promise<{ success: true; campaignId: string } | FailResult> {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    const userId = user?.id ?? "user-mock-001";
+    const userId = DEFAULT_USER_ID;
 
     const campaign = await createCampaign(userId, {
       title: values.title,
@@ -61,9 +59,7 @@ export async function duplicateCampaignAction(
   campaignId: string
 ): Promise<{ success: true } | FailResult> {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    const userId = user?.id ?? "user-mock-001";
+    const userId = DEFAULT_USER_ID;
 
     const result = await duplicateCampaign(campaignId, userId);
     if (!result) return { success: false, error: "Campaign not found or access denied." };

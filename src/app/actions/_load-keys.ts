@@ -6,15 +6,12 @@
  * Call this early in any action that triggers LLM generation.
  */
 
-import { createClient } from "@/lib/supabase/server";
+import { DEFAULT_USER_ID } from "@/lib/config/env";
 import { loadSettingsKeys } from "@/lib/config/settings-loader";
 
 export async function loadUserKeys(): Promise<void> {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    const userId = user?.id ?? "user-mock-001";
-    await loadSettingsKeys(userId);
+    await loadSettingsKeys(DEFAULT_USER_ID);
   } catch {
     // Non-fatal — providers will fall back to env vars
   }

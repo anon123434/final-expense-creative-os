@@ -1,23 +1,11 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { DEFAULT_USER_ID } from "@/lib/config/env";
 import { getSettingsByUserId, upsertSettings } from "@/lib/repositories/settings-repo";
 import { resetLLMClients } from "@/lib/llm/providers/reset";
 import type { SettingsKeyStatus, SettingsFormData } from "@/types/settings";
 import type { FailResult } from "@/lib/result";
 import { actionFail } from "@/lib/result";
-
-// ── Helpers ──────────────────────────────────────────────────────────────
-
-async function getCurrentUserId(): Promise<string> {
-  try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    return user?.id ?? "user-mock-001";
-  } catch {
-    return "user-mock-001";
-  }
-}
 
 // ── Load (returns masked status, never raw keys) ─────────────────────────
 
@@ -25,7 +13,7 @@ export async function getSettingsStatusAction(): Promise<
   { success: true; status: SettingsKeyStatus; maskedKeys: Record<string, string> } | FailResult
 > {
   try {
-    const userId = await getCurrentUserId();
+    const userId = DEFAULT_USER_ID;
     const settings = await getSettingsByUserId(userId);
 
     const mask = (key: string | null): string => {
@@ -68,7 +56,7 @@ export async function saveSettingsAction(
   formData: SettingsFormData
 ): Promise<{ success: true } | FailResult> {
   try {
-    const userId = await getCurrentUserId();
+    const userId = DEFAULT_USER_ID;
 
     // Load existing settings to merge unchanged fields
     const existing = await getSettingsByUserId(userId);

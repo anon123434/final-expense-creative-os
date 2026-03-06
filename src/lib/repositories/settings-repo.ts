@@ -6,25 +6,13 @@
 import type { UserSettings } from "@/types/settings";
 import type { SettingsRow } from "@/types/database";
 import { toSettings } from "@/lib/mappers";
-import { hasSupabaseConfig, getSupabaseServerClient } from "@/lib/supabase/repo-helpers";
+import { withSupabase, hasSupabaseConfig, getSupabaseServerClient } from "@/lib/supabase/repo-helpers";
 
 export async function getSettingsByUserId(userId: string): Promise<UserSettings | null> {
-  if (hasSupabaseConfig()) {
-    const supabase = await getSupabaseServerClient();
-    const { data, error } = await supabase
-      .from("settings")
-      .select("*")
-      .eq("user_id", userId)
-      .single();
-
-    if (!error && data) return toSettings(data as SettingsRow);
-    // PGRST116 = row not found — expected when user has no settings yet
-    if (error?.code !== "PGRST116") {
-      console.warn("Supabase getSettingsByUserId failed:", error?.message);
-    }
-  }
-
-  return null;
+  const data = await withSupabase<SettingsRow>("getSettingsByUserId", (supabase) =>
+    supabase.from("settings").select("*").eq("user_id", userId).single()
+  );
+  return data ? toSettings(data) : null;
 }
 
 export interface UpsertSettingsData {
@@ -41,26 +29,31 @@ export async function upsertSettings(
   data: UpsertSettingsData
 ): Promise<UserSettings> {
   if (hasSupabaseConfig()) {
-    const supabase = await getSupabaseServerClient();
-    const { data: row, error } = await supabase
-      .from("settings")
-      .upsert(
-        {
-          user_id: userId,
-          claude_api_key: data.claudeApiKey ?? null,
-          openai_api_key: data.openaiApiKey ?? null,
-          elevenlabs_api_key: data.elevenlabsApiKey ?? null,
-          seedream_api_key: data.seedreamApiKey ?? null,
-          gemini_api_key: data.geminiApiKey ?? null,
-          kling_api_key: data.klingApiKey ?? null,
-        },
-        { onConflict: "user_id" }
-      )
-      .select()
-      .single();
+    try {
+      const supabase = await getSupabaseServerClient();
+      const { data: row, error } = await supabase
+        .from("settings")
+        .upsert(
+          {
+            user_id: userId,
+            claude_api_key: data.claudeApiKey ?? null,
+            openai_api_key: data.openaiApiKey ?? null,
+            elevenlabs_api_key: data.elevenlabsApiKey ?? null,
+            seedream_api_key: data.seedreamApiKey ?? null,
+            gemini_api_key: data.geminiApiKey ?? null,
+            kling_api_key: data.klingApiKey ?? null,
+          },
+          { onConflict: "user_id" }
+        )
+        .select()
+        .single();
 
-    if (!error && row) return toSettings(row as SettingsRow);
-    throw new Error(`Failed to save settings: ${error?.message}`);
+      if (!error && row) return toSettings(row as SettingsRow);
+      console.error("[Supabase] upsertSettings failed:", error?.message);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[Supabase] upsertSettings network/client error: ${msg}`);
+    }
   }
 
   // Mock fallback — return a synthetic settings object

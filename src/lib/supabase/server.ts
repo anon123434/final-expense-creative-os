@@ -1,31 +1,30 @@
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { getSupabaseUrl, getSupabaseAnonKey } from "@/lib/config/env";
 
 /**
- * Server client — use in Server Components, Server Actions, and Route Handlers.
- * Reads and writes cookies from next/headers.
+ * Server client — data-only mode (no auth).
+ * Uses the service role key if available, otherwise anon key.
+ * Safe to call from Server Components, Server Actions, and Route Handlers.
+ *
+ * Throws if Supabase env vars are missing — callers should check
+ * `hasSupabaseConfig()` before calling this.
  */
 export async function createClient() {
-  const cookieStore = await cookies();
+  const url = getSupabaseUrl();
+  if (!url) {
+    throw new Error(
+      "NEXT_PUBLIC_SUPABASE_URL is not set or contains a placeholder value"
+    );
+  }
 
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              cookieStore.set(name, value, options);
-            });
-          } catch {
-            // setAll called from a Server Component — cookies will be set by middleware
-          }
-        },
-      },
-    }
-  );
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const anonKey = getSupabaseAnonKey();
+  const key = serviceKey ?? anonKey;
+  if (!key) {
+    throw new Error(
+      "NEXT_PUBLIC_SUPABASE_ANON_KEY is not set or contains a placeholder value"
+    );
+  }
+
+  return createSupabaseClient(url, key);
 }

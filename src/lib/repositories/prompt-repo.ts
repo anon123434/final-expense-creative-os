@@ -9,23 +9,23 @@
  */
 
 import type { ImagePrompt, ScenePrompt, ScenePromptPack } from "@/types/prompt";
+import type { PromptRow } from "@/types/database";
 import { toImagePrompt } from "@/lib/mappers";
 import { mockPromptRows } from "@/lib/mock/prompt-mock";
-import { hasSupabaseConfig, getSupabaseServerClient } from "@/lib/supabase/repo-helpers";
+import { withSupabase, hasSupabaseConfig, getSupabaseServerClient } from "@/lib/supabase/repo-helpers";
 
 // ── Read ───────────────────────────────────────────────────────────────────
 
 export async function getPromptsByCampaign(campaignId: string): Promise<ImagePrompt[]> {
-  if (hasSupabaseConfig()) {
-    const supabase = await getSupabaseServerClient();
-    const { data, error } = await supabase
+  const data = await withSupabase("getPromptsByCampaign", (supabase) =>
+    supabase
       .from("prompts")
       .select("*")
       .eq("campaign_id", campaignId)
-      .order("created_at", { ascending: false });
-    if (!error && data) return data.map(toImagePrompt);
-    console.warn("Supabase getPromptsByCampaign failed, using mock:", error?.message);
-  }
+      .order("created_at", { ascending: false })
+  );
+  if (data) return (data as PromptRow[]).map(toImagePrompt);
+
   await new Promise((r) => setTimeout(r, 100));
   return mockPromptRows.filter((r) => r.campaign_id === campaignId).map(toImagePrompt);
 }
@@ -40,21 +40,22 @@ export async function getPromptPackByVisualPlan(
 ): Promise<ScenePromptPack | null> {
   let rows: ImagePrompt[];
 
-  if (hasSupabaseConfig()) {
-    const supabase = await getSupabaseServerClient();
-    const { data, error } = await supabase
+  const data = await withSupabase("getPromptPackByVisualPlan", (supabase) =>
+    supabase
       .from("prompts")
       .select("*")
       .eq("campaign_id", campaignId)
       .eq("visual_plan_id", visualPlanId)
-      .order("scene_name");
-    if (!error && data && data.length > 0) {
-      rows = data.map(toImagePrompt);
-    } else {
-      if (error) console.warn("Supabase getPromptPackByVisualPlan failed:", error.message);
-      return null;
-    }
+      .order("scene_name")
+  );
+
+  if (data && (data as unknown[]).length > 0) {
+    rows = (data as PromptRow[]).map(toImagePrompt);
+  } else if (data) {
+    // Query succeeded but no rows — not an error
+    return null;
   } else {
+    // Supabase unavailable — use mock
     await new Promise((r) => setTimeout(r, 100));
     const raw = mockPromptRows
       .filter((r) => r.campaign_id === campaignId && r.visual_plan_id === visualPlanId)
@@ -110,11 +111,16 @@ export async function upsertPromptPack(
   const rows = buildPromptRows(campaignId, visualPlanId, pack);
 
   if (hasSupabaseConfig()) {
-    const supabase = await getSupabaseServerClient();
-    await supabase.from("prompts").delete().eq("visual_plan_id", visualPlanId);
-    const { error } = await supabase.from("prompts").insert(rows);
-    if (!error) return { visualPlanId, ...pack };
-    console.warn("Supabase upsertPromptPack failed, using mock:", error.message);
+    try {
+      const supabase = await getSupabaseServerClient();
+      await supabase.from("prompts").delete().eq("visual_plan_id", visualPlanId);
+      const { error } = await supabase.from("prompts").insert(rows);
+      if (!error) return { visualPlanId, ...pack };
+      console.warn("[Supabase] upsertPromptPack failed:", error.message);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[Supabase] upsertPromptPack network/client error: ${msg}`);
+    }
   }
 
   await new Promise((r) => setTimeout(r, 250));

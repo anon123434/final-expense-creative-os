@@ -5,23 +5,20 @@
 
 import type { AdConcept } from "@/types";
 import type { CreativeVariation } from "@/types/variation";
-import type { ConceptInsert } from "@/types/database";
+import type { ConceptInsert, ConceptRow } from "@/types/database";
 import { toConcept } from "@/lib/mappers";
 import { mockConceptRows } from "@/lib/mock/concept-mock";
-import { hasSupabaseConfig, getSupabaseServerClient } from "@/lib/supabase/repo-helpers";
+import { withSupabase, hasSupabaseConfig, getSupabaseServerClient } from "@/lib/supabase/repo-helpers";
 
 export async function getConceptsByCampaign(campaignId: string): Promise<AdConcept[]> {
-  if (hasSupabaseConfig()) {
-    const supabase = await getSupabaseServerClient();
-    const { data, error } = await supabase
+  const data = await withSupabase("getConceptsByCampaign", (supabase) =>
+    supabase
       .from("concepts")
       .select("*")
       .eq("campaign_id", campaignId)
-      .order("created_at", { ascending: false });
-
-    if (!error && data) return data.map(toConcept);
-    console.warn("Supabase getConceptsByCampaign failed, using mock:", error?.message);
-  }
+      .order("created_at", { ascending: false })
+  );
+  if (data) return (data as ConceptRow[]).map(toConcept);
 
   await new Promise((r) => setTimeout(r, 100));
   return mockConceptRows.filter((r) => r.campaign_id === campaignId).map(toConcept);
@@ -29,15 +26,20 @@ export async function getConceptsByCampaign(campaignId: string): Promise<AdConce
 
 export async function createConcept(data: ConceptInsert): Promise<AdConcept> {
   if (hasSupabaseConfig()) {
-    const supabase = await getSupabaseServerClient();
-    const { data: row, error } = await supabase
-      .from("concepts")
-      .insert(data)
-      .select()
-      .single();
+    try {
+      const supabase = await getSupabaseServerClient();
+      const { data: row, error } = await supabase
+        .from("concepts")
+        .insert(data)
+        .select()
+        .single();
 
-    if (!error && row) return toConcept(row);
-    console.warn("Supabase createConcept failed, using mock:", error?.message);
+      if (!error && row) return toConcept(row);
+      console.warn("[Supabase] createConcept failed:", error?.message);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[Supabase] createConcept network/client error: ${msg}`);
+    }
   }
 
   await new Promise((r) => setTimeout(r, 200));
@@ -89,15 +91,20 @@ export async function promoteVariationToConcept(
   };
 
   if (hasSupabaseConfig()) {
-    const supabase = await getSupabaseServerClient();
-    const { data, error } = await supabase
-      .from("concepts")
-      .insert(insert)
-      .select()
-      .single();
+    try {
+      const supabase = await getSupabaseServerClient();
+      const { data, error } = await supabase
+        .from("concepts")
+        .insert(insert)
+        .select()
+        .single();
 
-    if (!error && data) return toConcept(data);
-    console.warn("Supabase promoteVariationToConcept failed, using mock:", error?.message);
+      if (!error && data) return toConcept(data);
+      console.warn("[Supabase] promoteVariationToConcept failed:", error?.message);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[Supabase] promoteVariationToConcept network/client error: ${msg}`);
+    }
   }
 
   return createConcept(insert);

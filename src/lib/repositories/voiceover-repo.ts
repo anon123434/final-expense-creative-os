@@ -4,21 +4,21 @@
  */
 
 import type { VoiceoverScript } from "@/types";
+import type { VoScriptRow } from "@/types/database";
 import { toVoiceover } from "@/lib/mappers";
 import { mockVoScriptRows } from "@/lib/mock/voiceover-mock";
-import { hasSupabaseConfig, getSupabaseServerClient } from "@/lib/supabase/repo-helpers";
+import { withSupabase, hasSupabaseConfig, getSupabaseServerClient } from "@/lib/supabase/repo-helpers";
 
 export async function getVoScriptsByCampaign(campaignId: string): Promise<VoiceoverScript[]> {
-  if (hasSupabaseConfig()) {
-    const supabase = await getSupabaseServerClient();
-    const { data, error } = await supabase
+  const data = await withSupabase("getVoScriptsByCampaign", (supabase) =>
+    supabase
       .from("vo_scripts")
       .select("*")
       .eq("campaign_id", campaignId)
-      .order("created_at", { ascending: false });
-    if (!error && data) return data.map(toVoiceover);
-    console.warn("Supabase getVoScriptsByCampaign failed, using mock:", error?.message);
-  }
+      .order("created_at", { ascending: false })
+  );
+  if (data) return (data as VoScriptRow[]).map(toVoiceover);
+
   await new Promise((r) => setTimeout(r, 100));
   return mockVoScriptRows.filter((r) => r.campaign_id === campaignId).map(toVoiceover);
 }
@@ -27,22 +27,18 @@ export async function getLatestVoScriptForScript(
   campaignId: string,
   scriptId: string
 ): Promise<VoiceoverScript | null> {
-  if (hasSupabaseConfig()) {
-    const supabase = await getSupabaseServerClient();
-    const { data, error } = await supabase
+  const data = await withSupabase("getLatestVoScriptForScript", (supabase) =>
+    supabase
       .from("vo_scripts")
       .select("*")
       .eq("campaign_id", campaignId)
       .eq("script_id", scriptId)
       .order("created_at", { ascending: false })
       .limit(1)
-      .single();
-    if (!error && data) return toVoiceover(data);
-    if (error?.code !== "PGRST116") {
-      console.warn("Supabase getLatestVoScriptForScript failed:", error?.message);
-    }
-    return null;
-  }
+      .single()
+  );
+  if (data) return toVoiceover(data as VoScriptRow);
+
   await new Promise((r) => setTimeout(r, 100));
   const row = mockVoScriptRows
     .filter((r) => r.campaign_id === campaignId && r.script_id === scriptId)
@@ -60,20 +56,25 @@ export interface UpsertVoScriptData {
 
 export async function upsertVoScript(data: UpsertVoScriptData): Promise<VoiceoverScript> {
   if (hasSupabaseConfig()) {
-    const supabase = await getSupabaseServerClient();
-    const { data: row, error } = await supabase
-      .from("vo_scripts")
-      .insert({
-        campaign_id: data.campaignId,
-        script_id: data.scriptId,
-        tagged_script: data.taggedScript,
-        voice_profile: data.voiceProfile,
-        delivery_notes: data.deliveryNotes,
-      })
-      .select()
-      .single();
-    if (!error && row) return toVoiceover(row);
-    console.warn("Supabase upsertVoScript failed, using mock:", error?.message);
+    try {
+      const supabase = await getSupabaseServerClient();
+      const { data: row, error } = await supabase
+        .from("vo_scripts")
+        .insert({
+          campaign_id: data.campaignId,
+          script_id: data.scriptId,
+          tagged_script: data.taggedScript,
+          voice_profile: data.voiceProfile,
+          delivery_notes: data.deliveryNotes,
+        })
+        .select()
+        .single();
+      if (!error && row) return toVoiceover(row);
+      console.warn("[Supabase] upsertVoScript failed:", error?.message);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[Supabase] upsertVoScript network/client error: ${msg}`);
+    }
   }
 
   await new Promise((r) => setTimeout(r, 200));
