@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Lightbulb, Sparkles, Trash2, AlertCircle, RefreshCw } from "lucide-react";
+import { Lightbulb, Sparkles, AlertCircle, RefreshCw } from "lucide-react";
 import type { AdConcept } from "@/types";
 import { ConceptCard } from "./concept-card";
 import {
@@ -134,29 +134,14 @@ export function ConceptGeneratorPanel({
       {hasConcepts && !generating && (
         <div className="space-y-3">
           {concepts.map((concept) => (
-            <div key={concept.id} className="group relative">
-              <ConceptCard
-                concept={concept}
-                isSelected={concept.isSelected}
-                onSelect={handleSelect}
-              />
-              {/* Delete button — appears on hover */}
-              <button
-                type="button"
-                disabled={loading}
-                onClick={() => handleDelete(concept.id)}
-                className={cn(
-                  "absolute right-3 top-3 rounded-md p-1.5",
-                  "text-muted-foreground hover:text-destructive hover:bg-destructive/10",
-                  "opacity-0 group-hover:opacity-100 transition-opacity",
-                  "disabled:cursor-not-allowed",
-                  // Hidden — revealed on group hover
-                )}
-                aria-label="Delete concept"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-            </div>
+            <ConceptCard
+              key={concept.id}
+              concept={concept}
+              isSelected={concept.isSelected}
+              onSelect={handleSelect}
+              onDelete={() => handleDelete(concept.id)}
+              deleting={deleting}
+            />
           ))}
         </div>
       )}

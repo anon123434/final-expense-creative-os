@@ -8,6 +8,7 @@ import {
   Circle,
   Copy,
   Check,
+  Trash2,
 } from "lucide-react";
 import type { AdConcept } from "@/types";
 import { cn } from "@/lib/utils";
@@ -16,9 +17,11 @@ interface ConceptCardProps {
   concept: AdConcept;
   isSelected: boolean;
   onSelect: (id: string) => void;
+  onDelete?: () => void;
+  deleting?: boolean;
 }
 
-export function ConceptCard({ concept, isSelected, onSelect }: ConceptCardProps) {
+export function ConceptCard({ concept, isSelected, onSelect, onDelete, deleting }: ConceptCardProps) {
   const [expanded, setExpanded] = useState(isSelected);
   const [copied, setCopied] = useState<string | null>(null);
 
@@ -104,6 +107,20 @@ export function ConceptCard({ concept, isSelected, onSelect }: ConceptCardProps)
             <ChevronDown className="h-4 w-4" />
           )}
         </button>
+
+        {/* Delete button */}
+        {onDelete && (
+          <button
+            type="button"
+            onClick={onDelete}
+            disabled={deleting}
+            className="mt-0.5 shrink-0 text-muted-foreground/40 hover:text-destructive transition-colors disabled:cursor-not-allowed"
+            aria-label="Delete concept"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        )}
+
       </div>
 
       {/* Expanded body */}
