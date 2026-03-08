@@ -4,71 +4,106 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
+  --color-background:                var(--background);
+  --color-foreground:                var(--foreground);
+  --color-card:                      var(--card);
+  --color-card-foreground:           var(--card-foreground);
+  --color-popover:                   var(--popover);
+  --color-popover-foreground:        var(--popover-foreground);
+  --color-primary:                   var(--primary);
+  --color-primary-foreground:        var(--primary-foreground);
+  --color-secondary:                 var(--secondary);
+  --color-secondary-foreground:      var(--secondary-foreground);
+  --color-muted:                     var(--muted);
+  --color-muted-foreground:          var(--muted-foreground);
+  --color-accent:                    var(--accent);
+  --color-accent-foreground:         var(--accent-foreground);
+  --color-destructive:               var(--destructive);
+  --color-destructive-foreground:    var(--destructive-foreground);
+  --color-border:                    var(--border);
+  --color-input:                     var(--input);
+  --color-ring:                      var(--ring);
+  --color-sidebar:                   var(--sidebar);
+  --color-sidebar-foreground:        var(--sidebar-foreground);
+  --color-sidebar-accent:            var(--sidebar-accent);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --radius-sm: calc(var(--radius) - 2px);
-  --radius-md: var(--radius);
-  --radius-lg: calc(var(--radius) + 2px);
-  --radius-xl: calc(var(--radius) + 6px);
-  --font-sans: 'Barlow', ui-sans-serif, system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --color-sidebar-border:            var(--sidebar-border);
+  --radius-sm:  calc(var(--radius) - 2px);
+  --radius-md:  var(--radius);
+  --radius-lg:  calc(var(--radius) + 2px);
+  --radius-xl:  calc(var(--radius) + 6px);
+  --font-sans:  'Barlow', ui-sans-serif, system-ui, sans-serif;
+  --font-mono:  'JetBrains Mono', ui-monospace, monospace;
 }
 
+/* ─────────────────────────────────────────────────────────────
+   DARK MODE  (default)
+   Layered dark grays — each surface step is clearly distinct
+───────────────────────────────────────────────────────────── */
 :root {
-  /* ── Futuristic dark terminal theme ───────────────── */
-  --background: #080808;
-  --foreground: #DEDEDE;
-  --card: #0D0D0D;
-  --card-foreground: #DEDEDE;
-  --popover: #111111;
-  --popover-foreground: #DEDEDE;
-  --primary: #00FF88;
-  --primary-foreground: #000000;
-  --secondary: #161616;
-  --secondary-foreground: #DEDEDE;
-  --muted: #141414;
-  --muted-foreground: #4A4A4A;
-  --accent: #1A1A1A;
-  --accent-foreground: #DEDEDE;
-  --destructive: #FF3131;
+  --background:             #111111;   /* page bg — dark charcoal, not pure black */
+  --foreground:             #E8E8E8;   /* body text — high contrast, not harsh white */
+  --card:                   #191919;   /* cards / panels — visible lift off bg */
+  --card-foreground:        #E8E8E8;
+  --popover:                #1F1F1F;   /* dropdowns / popovers — elevated */
+  --popover-foreground:     #E8E8E8;
+  --primary:                #00E676;   /* neon green — slightly softer than #00FF88 */
+  --primary-foreground:     #000000;
+  --secondary:              #1E1E1E;
+  --secondary-foreground:   #C8C8C8;
+  --muted:                  #1A1A1A;
+  --muted-foreground:       #888888;   /* readable labels — was #4A4A4A (invisible) */
+  --accent:                 #222222;
+  --accent-foreground:      #E8E8E8;
+  --destructive:            #FF4444;
   --destructive-foreground: #FFFFFF;
-  --border: #1C1C1C;
-  --input: #111111;
-  --ring: #00FF88;
-  --radius: 0.25rem;
-  --sidebar: #060606;
-  --sidebar-foreground: #DEDEDE;
-  --sidebar-accent: #0F0F0F;
-  --sidebar-accent-foreground: #00FF88;
-  --sidebar-border: #141414;
+  --border:                 #2A2A2A;   /* visible borders — was #1C1C1C (invisible) */
+  --input:                  #1A1A1A;
+  --ring:                   #00E676;
+  --radius:                 0.25rem;
+  --sidebar:                #0D0D0D;   /* sidebar slightly darker than page */
+  --sidebar-foreground:     #E8E8E8;
+  --sidebar-accent:         #181818;
+  --sidebar-accent-foreground: #00E676;
+  --sidebar-border:         #1E1E1E;
 }
 
+/* ─────────────────────────────────────────────────────────────
+   LIGHT MODE
+   Clean, premium, same design language
+───────────────────────────────────────────────────────────── */
+.light {
+  --background:             #F5F5F5;
+  --foreground:             #141414;
+  --card:                   #FFFFFF;
+  --card-foreground:        #141414;
+  --popover:                #FFFFFF;
+  --popover-foreground:     #141414;
+  --primary:                #00A854;   /* darker green — legible on white */
+  --primary-foreground:     #FFFFFF;
+  --secondary:              #EEEEEE;
+  --secondary-foreground:   #141414;
+  --muted:                  #F0F0F0;
+  --muted-foreground:       #666666;
+  --accent:                 #E8E8E8;
+  --accent-foreground:      #141414;
+  --destructive:            #E53935;
+  --destructive-foreground: #FFFFFF;
+  --border:                 #E0E0E0;
+  --input:                  #FFFFFF;
+  --ring:                   #00A854;
+  --sidebar:                #FFFFFF;
+  --sidebar-foreground:     #141414;
+  --sidebar-accent:         #F5F5F5;
+  --sidebar-accent-foreground: #00A854;
+  --sidebar-border:         #E8E8E8;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   BASE
+───────────────────────────────────────────────────────────── */
 @layer base {
-  * {
-    @apply border-border;
-  }
+  * { @apply border-border; }
 
   body {
     @apply bg-background text-foreground;
@@ -82,41 +117,34 @@
     letter-spacing: 0.01em;
   }
 
-  /* Custom scrollbar */
-  ::-webkit-scrollbar { width: 4px; height: 4px; }
-  ::-webkit-scrollbar-track { background: #080808; }
-  ::-webkit-scrollbar-thumb { background: #252525; border-radius: 2px; }
-  ::-webkit-scrollbar-thumb:hover { background: #00FF88; }
-
   input, select, textarea, button {
     font-family: 'Barlow', ui-sans-serif, system-ui, sans-serif;
   }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--primary); }
 }
 
+/* ─────────────────────────────────────────────────────────────
+   UTILITIES
+───────────────────────────────────────────────────────────── */
 @layer utilities {
   .neon-glow {
-    box-shadow: 0 0 10px rgba(0, 255, 136, 0.35), 0 0 30px rgba(0, 255, 136, 0.1);
+    box-shadow: 0 0 12px rgba(0, 230, 118, 0.3), 0 0 32px rgba(0, 230, 118, 0.08);
   }
   .neon-glow-sm {
-    box-shadow: 0 0 6px rgba(0, 255, 136, 0.2);
-  }
-  .neon-text-glow {
-    text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+    box-shadow: 0 0 6px rgba(0, 230, 118, 0.2);
   }
   .neon-red-glow {
-    box-shadow: 0 0 10px rgba(255, 49, 49, 0.35), 0 0 30px rgba(255, 49, 49, 0.1);
-  }
-  .neon-border {
-    border-color: rgba(0, 255, 136, 0.6) !important;
-    box-shadow: 0 0 6px rgba(0, 255, 136, 0.2);
-  }
-  .terminal-grid {
-    background-image:
-      linear-gradient(rgba(0, 255, 136, 0.02) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(0, 255, 136, 0.02) 1px, transparent 1px);
-    background-size: 40px 40px;
+    box-shadow: 0 0 12px rgba(255, 68, 68, 0.3), 0 0 32px rgba(255, 68, 68, 0.08);
   }
   .font-display {
     font-family: 'Barlow Condensed', sans-serif;
+  }
+  .font-mono-data {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
   }
 }

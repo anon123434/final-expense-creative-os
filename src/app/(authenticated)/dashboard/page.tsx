@@ -35,19 +35,12 @@ export default async function DashboardPage() {
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1
-            className="text-3xl font-bold uppercase tracking-widest"
-            style={{
-              fontFamily: "'Barlow Condensed', sans-serif",
-              color: "#DEDEDE",
-              letterSpacing: "0.08em",
-            }}
-          >
+          <h1 className="text-3xl font-bold uppercase tracking-widest font-display text-foreground">
             Campaigns
           </h1>
           <p
-            className="mt-1 text-[11px] tracking-widest uppercase"
-            style={{ color: "#2A2A2A", fontFamily: "'JetBrains Mono', monospace" }}
+            className="mt-1 text-[11px] tracking-widest uppercase text-muted-foreground"
+            style={{ fontFamily: "'JetBrains Mono', monospace" }}
           >
             {campaigns.length === 0
               ? "No active campaigns"

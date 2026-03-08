@@ -15,41 +15,32 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside
-      className="flex h-screen w-56 flex-col border-r"
-      style={{ background: "#060606", borderColor: "#141414" }}
-    >
+    <aside className="flex h-screen w-56 flex-col border-r bg-sidebar text-sidebar-foreground">
       {/* Logo */}
-      <div
-        className="flex h-14 items-center gap-2.5 px-4 border-b"
-        style={{ borderColor: "#141414" }}
-      >
+      <div className="flex h-14 items-center gap-2.5 border-b px-4">
         <div
           className="flex h-7 w-7 shrink-0 items-center justify-center rounded"
           style={{
-            background: "rgba(0,255,136,0.08)",
-            border: "1px solid rgba(0,255,136,0.25)",
-            boxShadow: "0 0 8px rgba(0,255,136,0.12)",
+            background: "color-mix(in srgb, var(--primary) 10%, transparent)",
+            border: "1px solid color-mix(in srgb, var(--primary) 30%, transparent)",
           }}
         >
-          <Zap className="h-3.5 w-3.5" style={{ color: "#00FF88" }} />
+          <Zap className="h-3.5 w-3.5" style={{ color: "var(--primary)" }} />
         </div>
         <div className="leading-none min-w-0">
           <div
-            className="text-xs uppercase tracking-widest truncate"
+            className="text-xs font-bold uppercase tracking-widest truncate"
             style={{
               fontFamily: "'Barlow Condensed', sans-serif",
-              fontWeight: 700,
-              color: "#00FF88",
+              color: "var(--primary)",
               letterSpacing: "0.12em",
-              textShadow: "0 0 8px rgba(0,255,136,0.35)",
             }}
           >
             Creative OS
           </div>
           <div
-            className="text-[10px] tracking-wider truncate"
-            style={{ color: "#2E2E2E", fontFamily: "'JetBrains Mono', monospace" }}
+            className="text-[10px] tracking-wider truncate text-muted-foreground"
+            style={{ fontFamily: "'JetBrains Mono', monospace" }}
           >
             Final Expense
           </div>
@@ -59,8 +50,8 @@ export function Sidebar() {
       {/* Section label */}
       <div className="px-4 pt-5 pb-2">
         <span
-          className="text-[10px] tracking-widest uppercase"
-          style={{ color: "#252525", fontFamily: "'JetBrains Mono', monospace" }}
+          className="text-[10px] tracking-widest uppercase text-muted-foreground/40"
+          style={{ fontFamily: "'JetBrains Mono', monospace" }}
         >
           Navigation
         </span>
@@ -77,36 +68,24 @@ export function Sidebar() {
               href={item.href}
               className={cn(
                 "group flex items-center gap-3 rounded py-2.5 text-sm font-medium transition-all duration-150",
-                isActive ? "text-[#00FF88]" : "text-[#3A3A3A] hover:text-[#999999]"
+                isActive
+                  ? "text-sidebar-accent-foreground bg-sidebar-accent"
+                  : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent"
               )}
               style={
                 isActive
-                  ? {
-                      background: "rgba(0,255,136,0.05)",
-                      borderLeft: "2px solid #00FF88",
-                      paddingLeft: "10px",
-                      paddingRight: "12px",
-                    }
+                  ? { borderLeft: "2px solid var(--primary)", paddingLeft: "10px", paddingRight: "12px" }
                   : { borderLeft: "2px solid transparent", paddingLeft: "10px", paddingRight: "12px" }
               }
             >
-              <item.icon
-                className="h-4 w-4 shrink-0"
-                style={{ color: isActive ? "#00FF88" : undefined }}
-              />
-              <span
-                style={{
-                  fontFamily: "'Barlow', sans-serif",
-                  fontWeight: isActive ? 600 : 400,
-                  ...(isActive && { textShadow: "0 0 8px rgba(0,255,136,0.3)" }),
-                }}
-              >
+              <item.icon className="h-4 w-4 shrink-0" />
+              <span style={{ fontFamily: "'Barlow', sans-serif", fontWeight: isActive ? 600 : 400 }}>
                 {item.label}
               </span>
               {isActive && (
                 <span
                   className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full"
-                  style={{ background: "#00FF88", boxShadow: "0 0 5px #00FF88" }}
+                  style={{ background: "var(--primary)", boxShadow: "0 0 5px var(--primary)" }}
                 />
               )}
             </Link>
@@ -115,15 +94,15 @@ export function Sidebar() {
       </nav>
 
       {/* Footer status */}
-      <div className="px-4 py-4 border-t" style={{ borderColor: "#141414" }}>
+      <div className="border-t px-4 py-4">
         <div className="flex items-center gap-2">
           <span
             className="h-1.5 w-1.5 rounded-full shrink-0"
-            style={{ background: "#00FF88", boxShadow: "0 0 4px #00FF88" }}
+            style={{ background: "var(--primary)", boxShadow: "0 0 4px var(--primary)" }}
           />
           <span
-            className="text-[10px] tracking-wider"
-            style={{ color: "#2A2A2A", fontFamily: "'JetBrains Mono', monospace" }}
+            className="text-[10px] tracking-wider text-muted-foreground/40"
+            style={{ fontFamily: "'JetBrains Mono', monospace" }}
           >
             SYSTEM ONLINE
           </span>

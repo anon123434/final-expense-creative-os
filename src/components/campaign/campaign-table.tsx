@@ -44,27 +44,15 @@ function CampaignRowActions({ id }: { id: string }) {
 
   return (
     <div className="flex items-center justify-end gap-2">
-      <button
+      <Button
+        variant="outline"
+        size="sm"
         onClick={() => router.push(`/campaigns/${id}`)}
-        className="inline-flex items-center gap-1.5 rounded px-2.5 py-1.5 text-xs font-medium transition-all duration-150"
-        style={{
-          color: "#00FF88",
-          border: "1px solid rgba(0,255,136,0.2)",
-          background: "rgba(0,255,136,0.05)",
-          fontFamily: "'JetBrains Mono', monospace",
-        }}
-        onMouseEnter={(e) => {
-          (e.currentTarget as HTMLElement).style.boxShadow = "0 0 10px rgba(0,255,136,0.2)";
-          (e.currentTarget as HTMLElement).style.borderColor = "rgba(0,255,136,0.4)";
-        }}
-        onMouseLeave={(e) => {
-          (e.currentTarget as HTMLElement).style.boxShadow = "none";
-          (e.currentTarget as HTMLElement).style.borderColor = "rgba(0,255,136,0.2)";
-        }}
+        className="gap-1.5 h-7 text-xs"
       >
         <ExternalLink className="h-3 w-3" />
         Open
-      </button>
+      </Button>
 
       <DropdownMenu
         align="right"
@@ -73,7 +61,6 @@ function CampaignRowActions({ id }: { id: string }) {
             variant="ghost"
             size="icon"
             className="h-7 w-7"
-            style={{ color: "#2E2E2E" }}
             disabled={isPending}
           >
             <MoreHorizontal className="h-3.5 w-3.5" />
@@ -95,32 +82,14 @@ function CampaignRowActions({ id }: { id: string }) {
   );
 }
 
-const TH_STYLE = {
-  color: "#2A2A2A",
-  fontFamily: "'JetBrains Mono', monospace",
-  fontSize: "10px",
-  letterSpacing: "0.1em",
-  textTransform: "uppercase" as const,
-  fontWeight: 500,
-};
-
 export function CampaignTable({ campaigns }: CampaignTableProps) {
   const router = useRouter();
 
   if (campaigns.length === 0) {
     return (
-      <div
-        className="flex flex-col items-center justify-center rounded py-20 text-center terminal-grid"
-        style={{ border: "1px dashed #1A1A1A" }}
-      >
-        <div
-          className="mb-3 h-8 w-8 rounded flex items-center justify-center"
-          style={{ border: "1px solid #1C1C1C", background: "#0D0D0D" }}
-        >
-          <span style={{ color: "#2A2A2A", fontSize: "18px" }}>+</span>
-        </div>
-        <p className="text-sm font-medium" style={{ color: "#3A3A3A" }}>No campaigns yet</p>
-        <p className="mt-1 text-xs" style={{ color: "#252525" }}>
+      <div className="flex flex-col items-center justify-center rounded border border-dashed py-20 text-center">
+        <p className="text-sm font-medium text-foreground">No campaigns yet</p>
+        <p className="mt-1 text-xs text-muted-foreground">
           Create your first campaign to get started.
         </p>
       </div>
@@ -128,15 +97,15 @@ export function CampaignTable({ campaigns }: CampaignTableProps) {
   }
 
   return (
-    <div className="rounded overflow-hidden" style={{ border: "1px solid #1C1C1C" }}>
+    <div className="rounded border overflow-hidden">
       <table className="w-full text-sm">
         <thead>
-          <tr style={{ background: "#0A0A0A", borderBottom: "1px solid #161616" }}>
-            <th className="px-4 py-3 text-left" style={TH_STYLE}>Title</th>
-            <th className="px-4 py-3 text-left" style={TH_STYLE}>Persona</th>
-            <th className="px-4 py-3 text-left" style={TH_STYLE}>Archetype</th>
-            <th className="px-4 py-3 text-left" style={TH_STYLE}>Created</th>
-            <th className="px-4 py-3 text-left" style={TH_STYLE}>Updated</th>
+          <tr className="border-b bg-muted/50">
+            <th className="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-widest text-muted-foreground" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Title</th>
+            <th className="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-widest text-muted-foreground" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Persona</th>
+            <th className="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-widest text-muted-foreground" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Archetype</th>
+            <th className="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-widest text-muted-foreground" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Created</th>
+            <th className="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-widest text-muted-foreground" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Updated</th>
             <th className="px-4 py-3" />
           </tr>
         </thead>
@@ -144,57 +113,43 @@ export function CampaignTable({ campaigns }: CampaignTableProps) {
           {campaigns.map((campaign) => (
             <tr
               key={campaign.id}
-              className="group cursor-pointer transition-all duration-100"
-              style={{ borderBottom: "1px solid #111111", background: "#0D0D0D" }}
+              className="group border-b last:border-0 cursor-pointer transition-colors hover:bg-accent"
               onClick={() => router.push(`/campaigns/${campaign.id}`)}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLElement).style.background = "#101010";
-                (e.currentTarget as HTMLElement).style.borderLeft = "2px solid rgba(0,255,136,0.3)";
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLElement).style.background = "#0D0D0D";
-                (e.currentTarget as HTMLElement).style.borderLeft = "none";
-              }}
             >
-              <td className="px-4 py-3 font-medium" style={{ color: "#DEDEDE" }}>
-                {campaign.title}
-              </td>
+              <td className="px-4 py-3 font-medium text-foreground">{campaign.title}</td>
               <td className="px-4 py-3">
                 {campaign.personaLabel ? (
                   <span
-                    className="inline-flex items-center rounded px-2 py-0.5 text-xs"
+                    className="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium"
                     style={{
-                      background: "rgba(0,255,136,0.06)",
-                      border: "1px solid rgba(0,255,136,0.12)",
-                      color: "#00FF88",
+                      background: "color-mix(in srgb, var(--primary) 10%, transparent)",
+                      border: "1px solid color-mix(in srgb, var(--primary) 20%, transparent)",
+                      color: "var(--primary)",
                       fontFamily: "'JetBrains Mono', monospace",
                     }}
                   >
                     {campaign.personaLabel}
                   </span>
                 ) : (
-                  <span style={{ color: "#252525" }}>—</span>
+                  <span className="text-muted-foreground/30">—</span>
                 )}
               </td>
-              <td className="px-4 py-3" style={{ color: "#3A3A3A", fontSize: "12px" }}>
-                {campaign.archetypeLabel ?? <span style={{ color: "#1E1E1E" }}>—</span>}
+              <td className="px-4 py-3 text-sm text-muted-foreground">
+                {campaign.archetypeLabel ?? <span className="text-muted-foreground/30">—</span>}
               </td>
               <td
-                className="px-4 py-3 tabular-nums text-xs"
-                style={{ color: "#2E2E2E", fontFamily: "'JetBrains Mono', monospace" }}
+                className="px-4 py-3 text-xs tabular-nums text-muted-foreground"
+                style={{ fontFamily: "'JetBrains Mono', monospace" }}
               >
                 {formatDate(campaign.createdAt)}
               </td>
               <td
-                className="px-4 py-3 tabular-nums text-xs"
-                style={{ color: "#2E2E2E", fontFamily: "'JetBrains Mono', monospace" }}
+                className="px-4 py-3 text-xs tabular-nums text-muted-foreground"
+                style={{ fontFamily: "'JetBrains Mono', monospace" }}
               >
                 {formatDate(campaign.updatedAt)}
               </td>
-              <td
-                className="px-4 py-3"
-                onClick={(e) => e.stopPropagation()}
-              >
+              <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                 <CampaignRowActions id={campaign.id} />
               </td>
             </tr>
