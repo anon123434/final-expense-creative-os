@@ -30,6 +30,7 @@ export async function createCampaignAction(
       affordabilityText: values.affordabilityText || undefined,
       ctaStyle: values.ctaStyle || undefined,
       notes: values.notes || undefined,
+      personaImageUrl: values.personaImageUrl || undefined,
     });
 
     if (values.triggers && Object.keys(values.triggers).length > 0) {

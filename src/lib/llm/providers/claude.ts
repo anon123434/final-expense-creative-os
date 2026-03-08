@@ -26,27 +26,23 @@ import {
   CLAUDE_DEFAULT_TEMPERATURE,
 } from "@/lib/config/models";
 
-// ── Client singleton ─────────────────────────────────────────────────────
-
-let _client: Anthropic | null = null;
+// ── Client factory ────────────────────────────────────────────────────────
+// No caching — creating an Anthropic instance is a cheap config operation,
+// not a network call. Always resolving fresh from the settings cache ensures
+// updated keys are picked up immediately without module restart.
 
 function getClient(): Anthropic {
-  if (!_client) {
-    const apiKey = resolveAnthropicApiKey();
-    if (!apiKey) {
-      throw new Error(
-        "ANTHROPIC_API_KEY is not set. Add it in Settings or your .env.local file."
-      );
-    }
-    _client = new Anthropic({ apiKey });
+  const apiKey = resolveAnthropicApiKey();
+  if (!apiKey) {
+    throw new Error(
+      "ANTHROPIC_API_KEY is not set. Add it in Settings or your .env.local file."
+    );
   }
-  return _client;
+  return new Anthropic({ apiKey });
 }
 
-/** Clear the cached client so the next call picks up fresh API keys. */
-export function resetClient(): void {
-  _client = null;
-}
+/** No-op — kept for API compatibility. No client to reset. */
+export function resetClient(): void {}
 
 // ── Config check ─────────────────────────────────────────────────────────
 

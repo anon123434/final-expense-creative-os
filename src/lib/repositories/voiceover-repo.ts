@@ -39,9 +39,9 @@ export async function getLatestVoScriptForScript(
       .single();
     if (!error && data) return toVoiceover(data);
     if (error?.code !== "PGRST116") {
-      console.warn("Supabase getLatestVoScriptForScript failed:", error?.message);
+      console.warn("Supabase getLatestVoScriptForScript failed, using mock:", error?.message);
     }
-    return null;
+    // fall through to mock
   }
   await new Promise((r) => setTimeout(r, 100));
   const row = mockVoScriptRows

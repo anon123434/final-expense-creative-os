@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Sparkles, Save, AlertCircle } from "lucide-react";
+import { Sparkles, Save, AlertCircle, Mic, Copy, Check, Cpu, Bot } from "lucide-react";
 import type { AdConcept, Script } from "@/types";
 import type { Campaign } from "@/types";
 import type { ScriptTransform } from "@/lib/services/script-transforms";
@@ -18,6 +18,19 @@ interface ScriptPanelProps {
   initialConceptId: string | null;
 }
 
+function scriptToFull(s: Script): string {
+  return [s.hook, s.body, s.cta].filter(Boolean).join("\n\n") || s.fullScript || "";
+}
+
+function parseFullScript(text: string): { hook: string; body: string; cta: string } {
+  const parts = text.split(/\n\n+/);
+  if (parts.length >= 3) {
+    return { hook: parts[0], body: parts.slice(1, -1).join("\n\n"), cta: parts[parts.length - 1] };
+  }
+  if (parts.length === 2) return { hook: parts[0], body: parts[1], cta: "" };
+  return { hook: "", body: text, cta: "" };
+}
+
 export function ScriptPanel({
   campaign,
   concepts,
@@ -25,14 +38,17 @@ export function ScriptPanel({
   initialConceptId,
 }: ScriptPanelProps) {
   const [conceptId, setConceptId] = useState<string | null>(initialConceptId);
-  const [hook, setHook] = useState(initialScript?.hook ?? "");
-  const [body, setBody] = useState(initialScript?.body ?? "");
-  const [cta, setCta] = useState(initialScript?.cta ?? "");
+  const [duration, setDuration] = useState<30 | 60 | 90>(30);
+  const [customPrompt, setCustomPrompt] = useState("");
+  const [fullScript, setFullScript] = useState(initialScript ? scriptToFull(initialScript) : "");
+  const [taggedScript, setTaggedScript] = useState("");
   const [hasScript, setHasScript] = useState(!!initialScript);
   const [isDirty, setIsDirty] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saved">("idle");
   const [activeTransform, setActiveTransform] = useState<ScriptTransform | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [genStatus, setGenStatus] = useState<{ scriptProvider: string; voProvider: string } | null>(null);
 
   const [generating, startGenerating] = useTransition();
   const [transforming, startTransforming] = useTransition();
@@ -42,14 +58,13 @@ export function ScriptPanel({
 
   function handleConceptChange(id: string) {
     setConceptId(id);
-    // Reset script when concept changes
-    setHook("");
-    setBody("");
-    setCta("");
+    setFullScript("");
+    setTaggedScript("");
     setHasScript(false);
     setIsDirty(false);
     setError(null);
     setSaveStatus("idle");
+    setGenStatus(null);
   }
 
   function handleGenerate() {
@@ -57,13 +72,13 @@ export function ScriptPanel({
     setError(null);
     setSaveStatus("idle");
     startGenerating(async () => {
-      const result = await generateScriptAction(campaign.id, conceptId);
+      const result = await generateScriptAction(campaign.id, conceptId, duration, customPrompt.trim() || undefined);
       if (result.success) {
-        setHook(result.script.hook ?? "");
-        setBody(result.script.body ?? "");
-        setCta(result.script.cta ?? "");
+        setFullScript(scriptToFull(result.script));
+        setTaggedScript(result.taggedScript ?? "");
         setHasScript(true);
         setIsDirty(false);
+        setGenStatus({ scriptProvider: result.scriptProvider, voProvider: result.voProvider });
       } else {
         setError(result.error);
       }
@@ -76,18 +91,11 @@ export function ScriptPanel({
     setSaveStatus("idle");
     setActiveTransform(transform);
     startTransforming(async () => {
-      const result = await applyTransformAction(
-        campaign.id,
-        conceptId,
-        hook,
-        body,
-        cta,
-        transform
-      );
+      const { hook, body, cta } = parseFullScript(fullScript);
+      const result = await applyTransformAction(campaign.id, conceptId, hook, body, cta, transform);
       if (result.success) {
-        setHook(result.script.hook ?? "");
-        setBody(result.script.body ?? "");
-        setCta(result.script.cta ?? "");
+        setFullScript(scriptToFull(result.script));
+        setTaggedScript("");
         setIsDirty(false);
       } else {
         setError(result.error);
@@ -100,6 +108,7 @@ export function ScriptPanel({
     if (!conceptId || !hasScript) return;
     setError(null);
     startSaving(async () => {
+      const { hook, body, cta } = parseFullScript(fullScript);
       const result = await saveScriptAction(campaign.id, conceptId, hook, body, cta);
       if (result.success) {
         setIsDirty(false);
@@ -108,6 +117,13 @@ export function ScriptPanel({
       } else {
         setError(result.error);
       }
+    });
+  }
+
+  function handleCopy() {
+    navigator.clipboard.writeText(taggedScript).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     });
   }
 
@@ -130,6 +146,26 @@ export function ScriptPanel({
               disabled={loading}
             />
           </div>
+          {/* Duration selector */}
+          <div className="flex shrink-0 rounded-md border text-sm">
+            {([30, 60, 90] as const).map((d) => (
+              <button
+                key={d}
+                type="button"
+                disabled={loading}
+                onClick={() => setDuration(d)}
+                className={cn(
+                  "px-3 py-2 font-medium transition-colors first:rounded-l-md last:rounded-r-md",
+                  "disabled:cursor-not-allowed disabled:opacity-50",
+                  duration === d
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                )}
+              >
+                {d}s
+              </button>
+            ))}
+          </div>
           <button
             type="button"
             disabled={!conceptId || loading}
@@ -147,6 +183,25 @@ export function ScriptPanel({
         </div>
       </section>
 
+      {/* Custom prompt */}
+      <section className="space-y-1.5">
+        <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Custom Instructions <span className="font-normal normal-case text-muted-foreground/60">(optional)</span>
+        </label>
+        <textarea
+          value={customPrompt}
+          onChange={(e) => setCustomPrompt(e.target.value)}
+          disabled={loading}
+          rows={2}
+          placeholder='e.g. "Start the hook with a question about funeral costs" or "Use phone number 1-888-200-0000" or "Make the tone more urgent"'
+          className={cn(
+            "w-full resize-y rounded-md border bg-background px-3 py-2 text-sm leading-relaxed placeholder:text-muted-foreground/50",
+            "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+            "disabled:cursor-not-allowed disabled:opacity-50"
+          )}
+        />
+      </section>
+
       {/* Error */}
       {error && (
         <div className="flex items-start gap-2 rounded-md border border-destructive/50 bg-destructive/5 px-3 py-2.5 text-sm text-destructive">
@@ -155,32 +210,63 @@ export function ScriptPanel({
         </div>
       )}
 
+      {/* Generation status */}
+      {genStatus && (
+        <ProviderStatus scriptProvider={genStatus.scriptProvider} voProvider={genStatus.voProvider} />
+      )}
+
       {/* Script editor */}
       {hasScript && (
         <>
-          <section className="space-y-4">
-            <ScriptField
-              label="Hook"
-              value={hook}
-              onChange={(v) => { setHook(v); setIsDirty(true); setSaveStatus("idle"); }}
+          {/* Full script — single editable box */}
+          <section className="space-y-1.5">
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Ad Script
+            </label>
+            <textarea
+              value={fullScript}
+              onChange={(e) => { setFullScript(e.target.value); setIsDirty(true); setSaveStatus("idle"); }}
               disabled={loading}
-              rows={3}
-            />
-            <ScriptField
-              label="Body"
-              value={body}
-              onChange={(v) => { setBody(v); setIsDirty(true); setSaveStatus("idle"); }}
-              disabled={loading}
-              rows={6}
-            />
-            <ScriptField
-              label="Call to Action"
-              value={cta}
-              onChange={(v) => { setCta(v); setIsDirty(true); setSaveStatus("idle"); }}
-              disabled={loading}
-              rows={3}
+              rows={12}
+              className={cn(
+                "w-full resize-y rounded-md border bg-background px-3 py-2 text-sm leading-relaxed",
+                "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+                "disabled:cursor-not-allowed disabled:opacity-50"
+              )}
             />
           </section>
+
+          {/* ElevenLabs tagged script — read-only preview */}
+          {taggedScript && (
+            <section className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Mic className="h-3.5 w-3.5 text-muted-foreground" />
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    ElevenLabs — Emotion Tagged
+                  </label>
+                  <ProviderBadge provider="openai" />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCopy}
+                  className="inline-flex items-center gap-1.5 rounded px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
+                >
+                  {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copied ? "Copied!" : "Copy"}
+                </button>
+              </div>
+              <textarea
+                readOnly
+                value={taggedScript}
+                rows={12}
+                className={cn(
+                  "w-full resize-y rounded-md border bg-muted/30 px-3 py-2 font-mono text-xs leading-relaxed text-foreground/80",
+                  "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                )}
+              />
+            </section>
+          )}
 
           {/* Quick actions */}
           <section className="space-y-2">
@@ -227,7 +313,7 @@ export function ScriptPanel({
           <Sparkles className="mb-3 h-8 w-8 text-muted-foreground/40" />
           <p className="text-sm font-medium">Ready to generate</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Click "Generate Script" to create a script for this concept.
+            Click "Generate Script" to create a script and ElevenLabs preview.
           </p>
         </div>
       )}
@@ -241,34 +327,41 @@ export function ScriptPanel({
   );
 }
 
-// ── Internal sub-component ─────────────────────────────────────────────────
+// ── Provider status banner ────────────────────────────────────────────────
 
-interface ScriptFieldProps {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  disabled?: boolean;
-  rows?: number;
+function providerLabel(p: string): { label: string; className: string; icon: React.ReactNode } {
+  if (p === "claude") return { label: "Claude", className: "bg-violet-500/10 text-violet-600 border-violet-500/20", icon: <Bot className="h-3 w-3" /> };
+  if (p === "openai") return { label: "OpenAI", className: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20", icon: <Bot className="h-3 w-3" /> };
+  if (p === "mock")   return { label: "Mock data — add API key in Settings to use real AI", className: "bg-amber-500/10 text-amber-600 border-amber-500/20", icon: <Cpu className="h-3 w-3" /> };
+  return { label: p, className: "bg-muted text-muted-foreground border-border", icon: <Cpu className="h-3 w-3" /> };
 }
 
-function ScriptField({ label, value, onChange, disabled, rows = 4 }: ScriptFieldProps) {
+function ProviderStatus({ scriptProvider, voProvider }: { scriptProvider: string; voProvider: string }) {
+  const script = providerLabel(scriptProvider);
+  const vo = providerLabel(voProvider);
+  const bothMock = scriptProvider === "mock" && (voProvider === "mock" || voProvider === "none");
+
+  if (bothMock) {
+    return (
+      <div className={cn("flex items-center gap-2 rounded-md border px-3 py-2 text-xs", script.className)}>
+        {script.icon}
+        <span>Generated with mock data — add your API keys in <strong>Settings</strong> to use Claude + OpenAI.</span>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-1.5">
-      <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        {label}
-      </label>
-      <textarea
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={disabled}
-        rows={rows}
-        className={cn(
-          "w-full resize-y rounded-md border bg-background px-3 py-2 text-sm leading-relaxed",
-          "placeholder:text-muted-foreground",
-          "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
-          "disabled:cursor-not-allowed disabled:opacity-50"
-        )}
-      />
+    <div className="flex flex-wrap gap-2">
+      <div className={cn("flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium", script.className)}>
+        {script.icon}
+        <span>Script: {script.label}</span>
+      </div>
+      {voProvider !== "none" && (
+        <div className={cn("flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium", vo.className)}>
+          {vo.icon}
+          <span>ElevenLabs: {vo.label}</span>
+        </div>
+      )}
     </div>
   );
 }

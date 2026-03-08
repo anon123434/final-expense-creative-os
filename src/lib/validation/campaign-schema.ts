@@ -27,6 +27,9 @@ export const campaignFormSchema = z.object({
 
   // ── Notes ────────────────────────────────────────────────
   notes: z.string().optional(),
+
+  // ── Persona image (base64 data URL — used for facial consistency in prompts)
+  personaImageUrl: z.string().optional(),
 });
 
 export type CampaignFormValues = z.infer<typeof campaignFormSchema>;

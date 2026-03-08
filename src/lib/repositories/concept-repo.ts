@@ -62,6 +62,36 @@ export async function createConcept(data: ConceptInsert): Promise<AdConcept> {
   return toConcept(row);
 }
 
+export async function selectConcept(campaignId: string, conceptId: string): Promise<void> {
+  if (hasSupabaseConfig()) {
+    const supabase = await getSupabaseServerClient();
+    // Deselect all, then select the chosen one
+    await supabase
+      .from("concepts")
+      .update({ is_selected: false })
+      .eq("campaign_id", campaignId);
+    await supabase
+      .from("concepts")
+      .update({ is_selected: true })
+      .eq("id", conceptId);
+    return;
+  }
+  // Mock fallback
+  for (const row of mockConceptRows) {
+    if (row.campaign_id === campaignId) row.is_selected = row.id === conceptId;
+  }
+}
+
+export async function deleteConcept(conceptId: string): Promise<void> {
+  if (hasSupabaseConfig()) {
+    const supabase = await getSupabaseServerClient();
+    await supabase.from("concepts").delete().eq("id", conceptId);
+    return;
+  }
+  const idx = mockConceptRows.findIndex((r) => r.id === conceptId);
+  if (idx !== -1) mockConceptRows.splice(idx, 1);
+}
+
 /**
  * Promotes a creative variation into a full concept row.
  * The variation's llm_raw records its origin for traceability.

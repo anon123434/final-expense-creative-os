@@ -1,6 +1,6 @@
 import type { VisualPlanRow } from "@/types/database";
 
-export const mockVisualPlanRows: VisualPlanRow[] = [
+const DEFAULT_VISUAL_PLANS: VisualPlanRow[] = [
   {
     id: "vp-1",
     campaign_id: "camp-1",
@@ -8,19 +8,24 @@ export const mockVisualPlanRows: VisualPlanRow[] = [
     overall_direction: "Warm, emotional, kitchen-table feel. Golden hour lighting throughout.",
     base_layer: "Stock footage with text overlays",
     a_roll: [
-      { description: "Elderly woman at kitchen table", duration: "5s" },
-      { description: "Close-up of family photos", duration: "3s" },
+      "Elderly woman at kitchen table (5s)",
+      "Close-up of family photos (3s)",
     ],
     b_roll: [
-      { description: "Funeral flowers", duration: "2s" },
-      { description: "Bills on a table", duration: "2s" },
+      "Funeral flowers (2s)",
+      "Bills on a table (2s)",
     ],
     scene_breakdown: [
-      { scene: 1, description: "Hook — woman looks worried", duration: "5s", transition: "Fade in" },
-      { scene: 2, description: "Problem — bills pile up", duration: "8s", transition: "Cut" },
-      { scene: 3, description: "Solution — phone call", duration: "10s", transition: "Cut" },
-      { scene: 4, description: "CTA — number on screen", duration: "7s", transition: "Fade to black" },
+      { sceneNumber: 1, sceneType: "A-roll", lineReference: "Hook", setting: "Kitchen table", emotion: "Worried", imagePrompt: "", klingPrompt: "" },
+      { sceneNumber: 2, sceneType: "B-roll", lineReference: "Problem", setting: "Bills on table", emotion: "Anxious", imagePrompt: "", klingPrompt: "" },
+      { sceneNumber: 3, sceneType: "A-roll", lineReference: "Solution", setting: "Phone call", emotion: "Hopeful", imagePrompt: "", klingPrompt: "" },
+      { sceneNumber: 4, sceneType: "A-roll", lineReference: "CTA", setting: "Phone number on screen", emotion: "Reassured", imagePrompt: "", klingPrompt: "" },
     ],
     created_at: "2025-12-05T00:00:00Z",
   },
 ];
+
+type MockStore = { _mockVisualPlanRows?: VisualPlanRow[] };
+const g = globalThis as typeof globalThis & MockStore;
+if (!g._mockVisualPlanRows) g._mockVisualPlanRows = [...DEFAULT_VISUAL_PLANS];
+export const mockVisualPlanRows = g._mockVisualPlanRows;

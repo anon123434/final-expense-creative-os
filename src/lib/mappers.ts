@@ -46,6 +46,7 @@ export function toCampaign(row: CampaignRow): Campaign {
     affordabilityText: row.affordability_text,
     ctaStyle: row.cta_style,
     notes: row.notes,
+    personaImageUrl: row.persona_image_url,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

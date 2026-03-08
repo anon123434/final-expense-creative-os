@@ -15,6 +15,7 @@ export interface Campaign {
   affordabilityText: string | null;
   ctaStyle: string | null;
   notes: string | null;
+  personaImageUrl: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -33,6 +34,7 @@ export interface CampaignFormData {
   affordabilityText?: string;
   ctaStyle?: string;
   notes?: string;
+  personaImageUrl?: string;
 }
 
 export interface CampaignTrigger {

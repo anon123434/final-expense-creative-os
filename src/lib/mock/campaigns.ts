@@ -2,7 +2,7 @@ import type { CampaignRow, CampaignTriggerRow } from "@/types/database";
 
 const MOCK_USER_ID = "user-mock-001";
 
-export const mockCampaignRows: CampaignRow[] = [
+const DEFAULT_CAMPAIGNS: CampaignRow[] = [
   {
     id: "camp-1",
     user_id: MOCK_USER_ID,
@@ -19,6 +19,7 @@ export const mockCampaignRows: CampaignRow[] = [
     affordability_text: "Less than $1 a day",
     cta_style: "call_now",
     notes: null,
+    persona_image_url: null,
     created_at: "2025-12-01T00:00:00Z",
     updated_at: "2025-12-15T00:00:00Z",
   },
@@ -38,6 +39,7 @@ export const mockCampaignRows: CampaignRow[] = [
     affordability_text: "Pennies a day",
     cta_style: "call_now",
     notes: null,
+    persona_image_url: null,
     created_at: "2025-12-10T00:00:00Z",
     updated_at: "2025-12-10T00:00:00Z",
   },
@@ -57,15 +59,32 @@ export const mockCampaignRows: CampaignRow[] = [
     affordability_text: null,
     cta_style: "call_now",
     notes: null,
+    persona_image_url: null,
     created_at: "2025-11-01T00:00:00Z",
     updated_at: "2025-12-01T00:00:00Z",
   },
 ];
 
-export const mockCampaignTriggerRows: CampaignTriggerRow[] = [
+const DEFAULT_TRIGGERS: CampaignTriggerRow[] = [
   { id: "trig-1", campaign_id: "camp-1", trigger_key: "loss_aversion", included: true },
   { id: "trig-2", campaign_id: "camp-1", trigger_key: "guilt_avoidance", included: true },
   { id: "trig-3", campaign_id: "camp-1", trigger_key: "affordability", included: true },
   { id: "trig-4", campaign_id: "camp-2", trigger_key: "scarcity", included: true },
   { id: "trig-5", campaign_id: "camp-2", trigger_key: "urgency", included: true },
 ];
+
+// ── Persist mock data on globalThis so it survives module re-evaluations ──
+// Next.js dev mode can re-evaluate modules per request; globalThis persists
+// for the lifetime of the Node process.
+type MockStore = {
+  _mockCampaignRows?: CampaignRow[];
+  _mockCampaignTriggerRows?: CampaignTriggerRow[];
+};
+
+const g = globalThis as typeof globalThis & MockStore;
+
+if (!g._mockCampaignRows) g._mockCampaignRows = [...DEFAULT_CAMPAIGNS];
+if (!g._mockCampaignTriggerRows) g._mockCampaignTriggerRows = [...DEFAULT_TRIGGERS];
+
+export const mockCampaignRows = g._mockCampaignRows;
+export const mockCampaignTriggerRows = g._mockCampaignTriggerRows;

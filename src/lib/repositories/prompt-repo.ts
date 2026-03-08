@@ -50,18 +50,18 @@ export async function getPromptPackByVisualPlan(
       .order("scene_name");
     if (!error && data && data.length > 0) {
       rows = data.map(toImagePrompt);
-    } else {
-      if (error) console.warn("Supabase getPromptPackByVisualPlan failed:", error.message);
-      return null;
+      return rowsToPromptPack(visualPlanId, rows);
     }
-  } else {
-    await new Promise((r) => setTimeout(r, 100));
-    const raw = mockPromptRows
-      .filter((r) => r.campaign_id === campaignId && r.visual_plan_id === visualPlanId)
-      .map(toImagePrompt);
-    if (raw.length === 0) return null;
-    rows = raw;
+    if (error) console.warn("Supabase getPromptPackByVisualPlan failed, using mock:", error.message);
+    // fall through to mock
   }
+
+  await new Promise((r) => setTimeout(r, 100));
+  const raw = mockPromptRows
+    .filter((r) => r.campaign_id === campaignId && r.visual_plan_id === visualPlanId)
+    .map(toImagePrompt);
+  if (raw.length === 0) return null;
+  rows = raw;
 
   return rowsToPromptPack(visualPlanId, rows);
 }

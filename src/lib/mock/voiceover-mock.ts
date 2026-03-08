@@ -1,6 +1,6 @@
 import type { VoScriptRow } from "@/types/database";
 
-export const mockVoScriptRows: VoScriptRow[] = [
+const DEFAULT_VO: VoScriptRow[] = [
   {
     id: "vo-1",
     campaign_id: "camp-1",
@@ -11,3 +11,8 @@ export const mockVoScriptRows: VoScriptRow[] = [
     created_at: "2025-12-04T00:00:00Z",
   },
 ];
+
+type MockStore = { _mockVoScriptRows?: VoScriptRow[] };
+const g = globalThis as typeof globalThis & MockStore;
+if (!g._mockVoScriptRows) g._mockVoScriptRows = [...DEFAULT_VO];
+export const mockVoScriptRows = g._mockVoScriptRows;

@@ -21,6 +21,7 @@ export interface CampaignRow {
   affordability_text: string | null;
   cta_style: string | null;
   notes: string | null;
+  persona_image_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -40,6 +41,7 @@ export interface CampaignInsert {
   affordability_text?: string | null;
   cta_style?: string | null;
   notes?: string | null;
+  persona_image_url?: string | null;
 }
 
 export interface CampaignUpdate {
@@ -56,6 +58,7 @@ export interface CampaignUpdate {
   affordability_text?: string | null;
   cta_style?: string | null;
   notes?: string | null;
+  persona_image_url?: string | null;
 }
 
 export interface CampaignTriggerRow {
@@ -155,8 +158,8 @@ export interface VisualPlanRow {
   script_id: string;
   overall_direction: string | null;
   base_layer: string | null;
-  a_roll: Record<string, unknown>[] | null;
-  b_roll: Record<string, unknown>[] | null;
+  a_roll: string[] | null;
+  b_roll: string[] | null;
   scene_breakdown: Record<string, unknown>[] | null;
   created_at: string;
 }
@@ -166,8 +169,8 @@ export interface VisualPlanInsert {
   script_id: string;
   overall_direction?: string | null;
   base_layer?: string | null;
-  a_roll?: Record<string, unknown>[] | null;
-  b_roll?: Record<string, unknown>[] | null;
+  a_roll?: string[] | null;
+  b_roll?: string[] | null;
   scene_breakdown?: Record<string, unknown>[] | null;
 }
 

@@ -40,9 +40,9 @@ export async function getLatestVisualPlanForScript(
       .single();
     if (!error && data) return toVisualPlan(data);
     if (error?.code !== "PGRST116") {
-      console.warn("Supabase getLatestVisualPlanForScript failed:", error?.message);
+      console.warn("Supabase getLatestVisualPlanForScript failed, using mock:", error?.message);
     }
-    return null;
+    // fall through to mock
   }
   await new Promise((r) => setTimeout(r, 100));
   const row = mockVisualPlanRows
@@ -88,8 +88,8 @@ export async function upsertVisualPlan(data: UpsertVisualPlanData): Promise<Visu
     script_id: data.scriptId,
     overall_direction: data.overallDirection,
     base_layer: data.baseLayer,
-    a_roll: data.aRoll as unknown as Record<string, unknown>[] | null,
-    b_roll: data.bRoll as unknown as Record<string, unknown>[] | null,
+    a_roll: data.aRoll,
+    b_roll: data.bRoll,
     scene_breakdown: data.scenes as unknown as Record<string, unknown>[] | null,
     created_at: new Date().toISOString(),
   };

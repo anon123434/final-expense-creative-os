@@ -1,19 +1,26 @@
-import { Lightbulb } from "lucide-react";
-import { TabPlaceholder } from "@/components/campaign/tab-placeholder";
-import { ProviderBadge } from "@/components/ui/provider-badge";
+import { notFound } from "next/navigation";
+import { getCampaignById } from "@/lib/repositories/campaign-repo";
+import { getConceptsByCampaign } from "@/lib/repositories/concept-repo";
+import { ConceptGeneratorPanel } from "@/components/concepts/concept-generator-panel";
 
-export default function ConceptsTab() {
+interface ConceptsPageProps {
+  params: Promise<{ id: string }>;
+}
+
+export default async function ConceptsPage({ params }: ConceptsPageProps) {
+  const { id } = await params;
+
+  const [campaign, concepts] = await Promise.all([
+    getCampaignById(id),
+    getConceptsByCampaign(id),
+  ]);
+
+  if (!campaign) notFound();
+
   return (
-    <div className="space-y-2">
-      <div className="flex justify-end px-1">
-        <ProviderBadge provider="claude" />
-      </div>
-      <TabPlaceholder
-        icon={Lightbulb}
-        title="Ad Concepts"
-        description="Generate multiple creative concepts based on your brief — each with a hook, emotional arc, CTA, and visual world."
-        hint="Concept generation coming next."
-      />
-    </div>
+    <ConceptGeneratorPanel
+      campaignId={id}
+      initialConcepts={concepts}
+    />
   );
 }

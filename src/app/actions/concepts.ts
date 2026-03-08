@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getCampaignById, getTriggersByCampaign } from "@/lib/repositories/campaign-repo";
-import { createConcept } from "@/lib/repositories/concept-repo";
+import { createConcept, selectConcept, deleteConcept } from "@/lib/repositories/concept-repo";
 import { generateConcepts } from "@/lib/services/concept-generator";
 import type { FailResult } from "@/lib/result";
 import { actionFail } from "@/lib/result";
@@ -51,5 +51,37 @@ export async function generateConceptsAction(
   } catch (err) {
     console.error("generateConceptsAction:", err);
     return actionFail(err, "Failed to generate concepts.");
+  }
+}
+
+// ── Select ─────────────────────────────────────────────────────────────────
+
+export async function selectConceptAction(
+  campaignId: string,
+  conceptId: string
+): Promise<{ success: true } | FailResult> {
+  try {
+    await selectConcept(campaignId, conceptId);
+    revalidatePath(`/campaigns/${campaignId}/concepts`);
+    return { success: true };
+  } catch (err) {
+    console.error("selectConceptAction:", err);
+    return actionFail(err, "Failed to select concept.");
+  }
+}
+
+// ── Delete ─────────────────────────────────────────────────────────────────
+
+export async function deleteConceptAction(
+  campaignId: string,
+  conceptId: string
+): Promise<{ success: true } | FailResult> {
+  try {
+    await deleteConcept(conceptId);
+    revalidatePath(`/campaigns/${campaignId}/concepts`);
+    return { success: true };
+  } catch (err) {
+    console.error("deleteConceptAction:", err);
+    return actionFail(err, "Failed to delete concept.");
   }
 }

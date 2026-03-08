@@ -25,27 +25,22 @@ import {
   OPENAI_DEFAULT_TEMPERATURE,
 } from "@/lib/config/models";
 
-// ── Client singleton ─────────────────────────────────────────────────────
-
-let _client: OpenAI | null = null;
+// ── Client factory ────────────────────────────────────────────────────────
+// No caching — creating an OpenAI instance is a cheap config operation.
+// Always resolving fresh ensures updated keys take effect immediately.
 
 function getClient(): OpenAI {
-  if (!_client) {
-    const apiKey = resolveOpenAIApiKey();
-    if (!apiKey) {
-      throw new Error(
-        "OPENAI_API_KEY is not set. Add it in Settings or your .env.local file."
-      );
-    }
-    _client = new OpenAI({ apiKey });
+  const apiKey = resolveOpenAIApiKey();
+  if (!apiKey) {
+    throw new Error(
+      "OPENAI_API_KEY is not set. Add it in Settings or your .env.local file."
+    );
   }
-  return _client;
+  return new OpenAI({ apiKey });
 }
 
-/** Clear the cached client so the next call picks up fresh API keys. */
-export function resetClient(): void {
-  _client = null;
-}
+/** No-op — kept for API compatibility. No client to reset. */
+export function resetClient(): void {}
 
 // ── Config check ─────────────────────────────────────────────────────────
 

@@ -1,6 +1,6 @@
 import type { ScriptRow } from "@/types/database";
 
-export const mockScriptRows: ScriptRow[] = [
+const DEFAULT_SCRIPTS: ScriptRow[] = [
   {
     id: "script-1",
     campaign_id: "camp-1",
@@ -15,3 +15,8 @@ export const mockScriptRows: ScriptRow[] = [
     created_at: "2025-12-03T00:00:00Z",
   },
 ];
+
+type MockStore = { _mockScriptRows?: ScriptRow[] };
+const g = globalThis as typeof globalThis & MockStore;
+if (!g._mockScriptRows) g._mockScriptRows = [...DEFAULT_SCRIPTS];
+export const mockScriptRows = g._mockScriptRows;

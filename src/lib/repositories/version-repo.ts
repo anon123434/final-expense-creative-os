@@ -40,9 +40,9 @@ export async function getVersionById(
       .single();
     if (!error && data) return toCampaignVersion(data);
     if (error?.code !== "PGRST116") {
-      console.warn("Supabase getVersionById failed:", error?.message);
+      console.warn("Supabase getVersionById failed, using mock:", error?.message);
     }
-    return null;
+    // fall through to mock
   }
   const row = mockVersionRows.find(
     (r) => r.campaign_id === campaignId && r.id === versionId

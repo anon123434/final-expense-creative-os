@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -20,13 +21,15 @@ const CTA_STYLES = [
 ];
 
 const DURATION_OPTIONS = [
-  { value: 30, label: "30 seconds" },
-  { value: 45, label: "45 seconds" },
-  { value: 60, label: "60 seconds" },
+  { value: 30, label: "30s" },
+  { value: 60, label: "60s" },
+  { value: 90, label: "90s" },
 ];
 
 export function CampaignForm() {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [personaImagePreview, setPersonaImagePreview] = useState<string | null>(null);
 
   const methods = useForm<CampaignFormValues>({
     resolver: zodResolver(campaignFormSchema),
@@ -56,6 +59,24 @@ export function CampaignForm() {
   } = methods;
 
   const selectedPersonaId = watch("personaId");
+
+  function handlePersonaImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = ev.target?.result as string;
+      setPersonaImagePreview(dataUrl);
+      setValue("personaImageUrl", dataUrl, { shouldDirty: true });
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function clearPersonaImage() {
+    setPersonaImagePreview(null);
+    setValue("personaImageUrl", undefined, { shouldDirty: true });
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
 
   // Filter archetypes to those that support the selected persona, or show all
   const filteredArchetypes =
@@ -241,6 +262,62 @@ export function CampaignForm() {
               />
             </FormField>
           </div>
+        </FormSection>
+
+        {/* ── Persona Image ───────────────────────────────────── */}
+        <FormSection
+          title="Persona Image"
+          description="Optional — attach a reference photo for exact facial consistency in generated image prompts."
+        >
+          <div className="flex items-start gap-4">
+            {personaImagePreview ? (
+              <div className="relative shrink-0">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={personaImagePreview}
+                  alt="Persona reference"
+                  className="h-24 w-24 rounded-lg object-cover border border-border"
+                />
+                <button
+                  type="button"
+                  onClick={clearPersonaImage}
+                  className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground text-xs font-bold shadow"
+                  aria-label="Remove image"
+                >
+                  ×
+                </button>
+              </div>
+            ) : (
+              <div
+                className="flex h-24 w-24 shrink-0 cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-border bg-muted text-muted-foreground text-xs text-center hover:border-primary hover:text-primary transition-colors"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                Upload photo
+              </div>
+            )}
+            <div className="flex flex-col gap-1.5 pt-1">
+              <p className="text-sm text-muted-foreground">
+                Use the attached image for exact facial consistency — this reference will be included automatically in image and scene prompts when generating content for this campaign.
+              </p>
+              {!personaImagePreview && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  Choose image…
+                </Button>
+              )}
+            </div>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handlePersonaImageChange}
+          />
         </FormSection>
 
         {/* ── Triggers ───────────────────────────────────────── */}

@@ -79,6 +79,10 @@ No markdown fences, no commentary — only valid JSON.`;
 function buildScenePromptPackPrompt(input: GenerateScenePromptPackInput): string {
   const { campaign, script, scenes, existingVoScript } = input;
 
+  const personaImageNote = campaign.personaImageUrl
+    ? `\nPERSONA IMAGE REFERENCE: A character reference photo has been provided for this campaign. For ALL scenes featuring a person (A-roll and any B-roll with talent), you MUST include at the start of the image_prompt: "Use the attached image of the person as the exact character reference. Maintain their facial structure, skin tone, bone structure, and likeness precisely. Do not alter or generalize their appearance." Then continue with the scene description.\n`
+    : "";
+
   const sceneList = scenes.map((s) => {
     const lines = [
       `Scene ${s.sceneNumber} (${s.sceneType})`,
@@ -95,7 +99,7 @@ function buildScenePromptPackPrompt(input: GenerateScenePromptPackInput): string
 - Persona: ${campaign.personaId ?? "general"}
 - Emotional tone: ${campaign.emotionalTone ?? "warm and empathetic"}
 - Duration target: ${campaign.durationSeconds ?? 30}s
-
+${personaImageNote}
 Script:
 HOOK: ${script.hook ?? ""}
 BODY: ${script.body ?? ""}
@@ -210,18 +214,28 @@ function buildTaggedScript(hook: string, body: string, cta: string): string {
   ].join("\n");
 }
 
-function mockPromptPack(input: GenerateScenePromptPackInput): GeneratedScenePromptPack {
-  const { script, scenes, existingVoScript } = input;
+const PERSONA_REF_PREFIX =
+  "Use the attached image of the person as the exact character reference. Maintain their facial structure, skin tone, bone structure, and likeness precisely. Do not alter or generalize their appearance. ";
 
-  const scenePrompts: ScenePrompt[] = scenes.map((scene) => ({
-    sceneNumber: scene.sceneNumber,
-    lineReference: scene.lineReference,
-    sceneType: scene.sceneType,
-    setting: scene.setting,
-    emotion: scene.emotion,
-    imagePrompt: buildImagePrompt(scene.imagePrompt, scene.sceneType === "A-roll"),
-    klingPrompt: buildKlingPrompt(scene.klingPrompt),
-  }));
+function mockPromptPack(input: GenerateScenePromptPackInput): GeneratedScenePromptPack {
+  const { campaign, script, scenes, existingVoScript } = input;
+  const hasPersonaRef = Boolean(campaign.personaImageUrl);
+
+  const scenePrompts: ScenePrompt[] = scenes.map((scene) => {
+    const isPersonScene = scene.sceneType === "A-roll";
+    const baseDesc = hasPersonaRef && isPersonScene
+      ? PERSONA_REF_PREFIX + scene.imagePrompt
+      : scene.imagePrompt;
+    return {
+      sceneNumber: scene.sceneNumber,
+      lineReference: scene.lineReference,
+      sceneType: scene.sceneType,
+      setting: scene.setting,
+      emotion: scene.emotion,
+      imagePrompt: buildImagePrompt(baseDesc, isPersonScene),
+      klingPrompt: buildKlingPrompt(scene.klingPrompt),
+    };
+  });
 
   const voScript =
     existingVoScript ??

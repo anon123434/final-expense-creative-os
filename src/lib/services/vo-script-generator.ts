@@ -36,6 +36,7 @@ export interface GeneratedVOScript {
   voiceProfile: string;
   deliveryNotes: string;
   phoneticPhone: string | null;
+  provider: "openai" | "mock";
 }
 
 // ── Phonetic phone number ─────────────────────────────────────────────────
@@ -100,33 +101,51 @@ function getVoiceProfile(personaId: string | null): string {
 
 // ── System prompt ────────────────────────────────────────────────────────
 
-const SYSTEM = `You are an expert voiceover director specialising in ElevenLabs TTS production for direct-response advertising.
+const SYSTEM = `You are an expert voiceover director specialising in ElevenLabs TTS production for direct-response final expense advertising.
 
 Given an ad script (hook, body, CTA), campaign context, and an emotional tone, produce:
 
-1. taggedScript — the full script with ElevenLabs emotion tags on every sentence.
-   Format:
-   <emotion description>
-   Sentence text here.
+1. taggedScript — the full script with ElevenLabs emotion tags wrapping each sentence.
+
+   Format: <emotion-tag>Sentence text here.</emotion-tag>
 
    Rules:
-   - Each sentence gets its own emotion tag on the line above it.
-   - Tags are lowercase, concise emotional/delivery directions inside angle brackets.
-   - Vary tags across sentences — build an emotional arc, don't repeat the same tag.
-   - Phone numbers MUST use the provided phonetic spelling, never raw digits.
-   - Separate sections with headers: ── HOOK ──, ── BODY ──, ── CALL TO ACTION ──
+   - EVERY sentence is wrapped with opening AND closing emotion tags.
+   - Tags are lowercase. Use hyphenated compound emotions or strong single words.
+   - Match the tag to the psychological trigger the sentence is activating:
+       Authority / Insider Knowledge  → amazed-informative, conspiratorial-calm, confident-reveal
+       Scarcity / Urgency             → urgent-building, urgent, time-running-out
+       Social Proof                   → relieved-amazed, warm-satisfied
+       Loss Aversion                  → heavy-emotional, worried-protective, sobering
+       Guilt Avoidance                → protective, heartfelt-serious, quietly-burdened
+       Simplicity / Reassurance       → reassuring-simple, calm-confident
+       Affordability / Value Disparity→ informative-value, matter-of-fact-amazed
+       Legitimacy                     → authoritative-calm, grounded-informative
+       Autonomy (CTA close)           → direct-firm, strong, clear-deliberate
+   - Build an emotional arc — vary tags, never repeat the same tag twice in a row.
+   - Phone numbers MUST use the provided phonetic spelling (e.g. "eight-seven-seven, eight-one-six, zero-five-six-two"), never raw digits.
+   - No section headers or separators — clean flow of individually tagged sentences separated by blank lines.
 
    Example:
-   ── HOOK ──
-   <subtle warmth>
-   Every Saturday night, we'd put that same old record on...
+   <amazed-informative>My son David works with the state and he just told me something unbelievable.</amazed-informative>
 
-   <intimate, softer>
-   He'd pull me close in this very living room...
+   <urgent-building>There's a twenty-five thousand dollar final expense benefit available to Americans over fifty, but hardly anyone knows about it.</urgent-building>
 
-   ── CALL TO ACTION ──
-   <firm, practical>
-   The number is eight-seven-seven... eight-zero-six... zero-six-seven-nine.
+   <protective>It's designed to help cover funeral costs, medical bills, and unpaid expenses so your family isn't left struggling when you pass.</protective>
+
+   <frustrated-angry>Here's the catch: it's not automatic. You have to call and ask for it by name because they don't advertise it publicly.</frustrated-angry>
+
+   <relieved-amazed>I answered two simple questions, had a short call, and got approved. The peace of mind was unreal.</relieved-amazed>
+
+   <informative-value>It's as low as two dollars a day, and that small amount gives your family twenty-five thousand dollars in peace of mind.</informative-value>
+
+   <direct-firm>Nobody's going to do it for you, so make sure to check your eligibility before it's too late.</direct-firm>
+
+   <urgent>This ends Friday at six p.m.</urgent>
+
+   <clear-deliberate>Here's the number: eight-seven-seven, eight-one-six, zero-five-six-two. Write that down.</clear-deliberate>
+
+   <strong>Call eight-seven-seven, eight-one-six, zero-five-six-two. The call is free.</strong>
 
 2. voiceProfile — a single voice casting note: suggested name, vocal qualities, register, and pacing style.
 
@@ -156,12 +175,17 @@ function buildPrompt(input: GenerateVOScriptInput): string {
 - Phone: ${campaign.phoneNumber ?? "none"}
 ${phoneticPhone ? `- Phonetic phone (USE THIS in CTA, not the raw number): ${phoneticPhone}` : ""}
 
+Psychological triggers active in this script (tag each sentence to its trigger):
+  Hook  → Authority, Insider Knowledge, Scarcity
+  Body  → Loss Aversion, Guilt Avoidance, Social Proof, Simplicity, Affordability, Value Disparity, Legitimacy
+  CTA   → Urgency, Autonomy
+
 Script:
 HOOK: ${hook}
 BODY: ${body}
 CTA: ${cta}
 
-Voice direction: Match the "${campaign.emotionalTone ?? "warm and empathetic"}" tone throughout. The performance should feel like a real person speaking from experience, not an actor reading copy. Build an emotional arc from the hook through the CTA.`;
+Voice direction: Match the "${campaign.emotionalTone ?? "warm and empathetic"}" tone throughout. The performance should feel like a real person speaking from lived experience, not an actor reading copy. Build an emotional arc: intrigued → alarmed → relieved → compelled to act.`;
 }
 
 // ── Response parser ──────────────────────────────────────────────────────
@@ -188,12 +212,13 @@ function parseResponse(text: string, phoneticPhone: string | null): GeneratedVOS
     voiceProfile: String(parsed.voiceProfile ?? ""),
     deliveryNotes: String(parsed.deliveryNotes ?? ""),
     phoneticPhone,
+    provider: "openai" as const,
   };
 }
 
 // ── Mock emotion tagger ──────────────────────────────────────────────────
 
-function tagSection(text: string, sectionTags: string[]): string {
+function tagSentences(text: string, tags: string[]): string {
   const sentences = text
     .split(/(?<=[.!?])\s+/)
     .map((s) => s.trim())
@@ -201,8 +226,8 @@ function tagSection(text: string, sectionTags: string[]): string {
 
   return sentences
     .map((sentence, i) => {
-      const tag = sectionTags[Math.min(i, sectionTags.length - 1)];
-      return `<${tag}>\n${sentence}`;
+      const tag = tags[Math.min(i, tags.length - 1)];
+      return `<${tag}>${sentence}</${tag}>`;
     })
     .join("\n\n");
 }
@@ -219,45 +244,46 @@ function mockGenerate(input: GenerateVOScriptInput): GeneratedVOScript {
     : cta;
 
   const hookTags = [
-    "subtle warmth, speaking directly to the viewer",
-    "gentle pause — let the question land",
+    "amazed-informative",      // Authority / Insider Knowledge
+    "conspiratorial-calm",     // Scarcity / insider reveal
   ];
   const bodyTags = [
-    "intimate, confessional tone",
-    "weight of reality — measured, somber",
-    "shift: offering relief, warmer",
-    "reassuring, matter-of-fact simplicity",
+    "heavy-emotional",         // Loss aversion
+    "frustrated-angry",        // Conspiracy — they don't advertise it
+    "relieved-amazed",         // Social proof — she got approved easily
+    "informative-value",       // Affordability / value disparity
+    "protective",              // Guilt avoidance
+    "reassuring-simple",       // Simplicity
   ];
   const ctaTags = [
-    "warm urgency — not pushy, but sincere",
-    "firm, practical — every word deliberate",
+    "direct-firm",             // Autonomy
+    "urgent",                  // Urgency / deadline
+    "clear-deliberate",        // Phone number delivery
+    "strong",                  // Final close
   ];
 
   const taggedScript = [
-    "── HOOK ─────────────────────────────────────────",
-    tagSection(hook, hookTags),
+    tagSentences(hook, hookTags),
     "",
-    "── BODY ─────────────────────────────────────────",
-    tagSection(body, bodyTags),
+    tagSentences(body, bodyTags),
     "",
-    "── CALL TO ACTION ───────────────────────────────",
-    tagSection(phoneticCta, ctaTags),
+    tagSentences(phoneticCta, ctaTags),
   ].join("\n");
 
   const voiceProfile = getVoiceProfile(campaign.personaId);
 
   const deliveryNotes = [
     `Pacing: ${campaign.durationSeconds ? `target ${campaign.durationSeconds}s — read slowly, allow silence to work.` : "slow and deliberate — silence is part of the performance."}`,
-    `Pauses: full beat after the hook question. Half-beat between body paragraphs. Firm, unhurried on the CTA.`,
-    `Emotion arc: open with quiet intimacy → weight of the problem → warmth of the solution → grounded urgency on the call to action.`,
+    `Pauses: full beat after the hook. Half-beat between body paragraphs. Firm and unhurried on the CTA.`,
+    `Emotion arc: open with amazed/informative → build urgency through the body → protective and firm on the close.`,
     campaign.phoneNumber
-      ? `Phone number: speak as "${phoneticPhone}" — one group at a time, no rushing.`
+      ? `Phone number: speak as "${phoneticPhone}" — one group at a time, with deliberate pauses.`
       : null,
   ]
     .filter(Boolean)
     .join("\n");
 
-  return { taggedScript, voiceProfile, deliveryNotes, phoneticPhone };
+  return { taggedScript, voiceProfile, deliveryNotes, phoneticPhone, provider: "mock" as const };
 }
 
 // ── Public API ───────────────────────────────────────────────────────────
@@ -283,7 +309,11 @@ export async function generateVOScript(
       });
       return parseResponse(raw, phoneticPhone);
     } catch (err) {
-      console.error("[generateVOScript] OpenAI error, falling back to mock:", err);
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[generateVOScript] OpenAI error, falling back to mock:", msg);
+      if (msg.includes("authentication") || msg.includes("401") || msg.includes("Incorrect API key")) {
+        throw new Error(`OpenAI API key is invalid — update it in Settings. (${msg})`);
+      }
     }
   }
 

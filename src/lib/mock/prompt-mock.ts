@@ -1,6 +1,6 @@
 import type { PromptRow } from "@/types/database";
 
-export const mockPromptRows: PromptRow[] = [
+const DEFAULT_PROMPTS: PromptRow[] = [
   {
     id: "prompt-1",
     campaign_id: "camp-1",
@@ -12,3 +12,8 @@ export const mockPromptRows: PromptRow[] = [
     created_at: "2025-12-06T00:00:00Z",
   },
 ];
+
+type MockStore = { _mockPromptRows?: PromptRow[] };
+const g = globalThis as typeof globalThis & MockStore;
+if (!g._mockPromptRows) g._mockPromptRows = [...DEFAULT_PROMPTS];
+export const mockPromptRows = g._mockPromptRows;

@@ -69,19 +69,25 @@ interface SettingsKeyCache {
   kling: string | null;
 }
 
-let _settingsCache: SettingsKeyCache | null = null;
+// Store on globalThis so the cache survives module re-evaluations in Next.js dev mode.
+type GlobalWithCache = typeof globalThis & { _settingsCache?: SettingsKeyCache | null };
+const _g = globalThis as GlobalWithCache;
+
+function getCache(): SettingsKeyCache | null {
+  return _g._settingsCache ?? null;
+}
 
 /**
  * Set the in-memory settings cache directly.
  * Called by `loadSettingsKeys()` in `@/lib/config/settings-loader` (server-only).
  */
 export function setSettingsCache(cache: SettingsKeyCache | null): void {
-  _settingsCache = cache;
+  _g._settingsCache = cache;
 }
 
 /** Clear the cached settings keys (used after saving new settings). */
 export function clearSettingsCache(): void {
-  _settingsCache = null;
+  _g._settingsCache = null;
 }
 
 // ── LLM providers ────────────────────────────────────────────────────────
@@ -94,7 +100,7 @@ export function getAnthropicApiKey(): string | undefined {
 
 /** Settings → env fallback. Used by the Claude provider to get the key. */
 export function resolveAnthropicApiKey(): string | undefined {
-  return _settingsCache?.anthropic ?? getAnthropicApiKey();
+  return getCache()?.anthropic ?? getAnthropicApiKey();
 }
 
 export function hasAnthropicEnv(): boolean {
@@ -114,7 +120,7 @@ export function getOpenAIApiKey(): string | undefined {
 
 /** Settings → env fallback. Used by the OpenAI provider to get the key. */
 export function resolveOpenAIApiKey(): string | undefined {
-  return _settingsCache?.openai ?? getOpenAIApiKey();
+  return getCache()?.openai ?? getOpenAIApiKey();
 }
 
 export function hasOpenAIEnv(): boolean {

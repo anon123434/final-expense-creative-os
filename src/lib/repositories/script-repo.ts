@@ -39,9 +39,9 @@ export async function getLatestScriptForConcept(
       .single();
     if (!error && data) return toScript(data);
     if (error?.code !== "PGRST116") {
-      console.warn("Supabase getLatestScriptForConcept failed:", error?.message);
+      console.warn("Supabase getLatestScriptForConcept failed, using mock:", error?.message);
     }
-    return null;
+    // fall through to mock
   }
   await new Promise((r) => setTimeout(r, 100));
   const row = mockScriptRows

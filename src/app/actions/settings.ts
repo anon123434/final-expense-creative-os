@@ -61,31 +61,23 @@ export async function getSettingsStatusAction(): Promise<
 
 // ── Save ─────────────────────────────────────────────────────────────────
 
-/** Sentinel value for "field was not changed" — the masked placeholder. */
-const UNCHANGED_PATTERN = /^.{4}••••.{4}$|^••••••••$/;
-
 export async function saveSettingsAction(
   formData: SettingsFormData
-): Promise<{ success: true } | FailResult> {
+): Promise<{ success: true; maskedKeys: Record<string, string> } | FailResult> {
   try {
     const userId = await getCurrentUserId();
 
-    // Load existing settings to merge unchanged fields
+    // Load existing settings to merge
     const existing = await getSettingsByUserId(userId);
 
-    function resolveKey(
-      newValue: string,
-      existingValue: string | null
-    ): string | null {
-      // Empty = user cleared the field → remove key
-      if (!newValue.trim()) return null;
-      // Masked placeholder = user didn't change it → keep existing
-      if (UNCHANGED_PATTERN.test(newValue)) return existingValue;
-      // New value entered
-      return newValue.trim();
+    // Empty field = keep existing key. Non-empty = replace with new value.
+    function resolveKey(newValue: string, existingValue: string | null): string | null {
+      const trimmed = newValue.trim();
+      if (!trimmed) return existingValue; // keep existing
+      return trimmed;
     }
 
-    await upsertSettings(userId, {
+    const saved = await upsertSettings(userId, {
       claudeApiKey: resolveKey(formData.claudeApiKey, existing?.claudeApiKey ?? null),
       openaiApiKey: resolveKey(formData.openaiApiKey, existing?.openaiApiKey ?? null),
       elevenlabsApiKey: resolveKey(formData.elevenlabsApiKey, existing?.elevenlabsApiKey ?? null),
@@ -97,7 +89,23 @@ export async function saveSettingsAction(
     // Reset cached LLM clients so they pick up new keys on next call
     resetLLMClients();
 
-    return { success: true };
+    const mask = (key: string | null): string => {
+      if (!key) return "";
+      if (key.length <= 8) return "••••••••";
+      return key.slice(0, 4) + "••••" + key.slice(-4);
+    };
+
+    return {
+      success: true,
+      maskedKeys: {
+        claudeApiKey: mask(saved.claudeApiKey ?? null),
+        openaiApiKey: mask(saved.openaiApiKey ?? null),
+        elevenlabsApiKey: mask(saved.elevenlabsApiKey ?? null),
+        seedreamApiKey: mask(saved.seedreamApiKey ?? null),
+        geminiApiKey: mask(saved.geminiApiKey ?? null),
+        klingApiKey: mask(saved.klingApiKey ?? null),
+      },
+    };
   } catch (err) {
     console.error("saveSettingsAction:", err);
     return actionFail(err, "Failed to save settings.");

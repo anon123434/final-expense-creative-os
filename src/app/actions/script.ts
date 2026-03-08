@@ -5,6 +5,7 @@ import { getCampaignById } from "@/lib/repositories/campaign-repo";
 import { getConceptsByCampaign } from "@/lib/repositories/concept-repo";
 import { upsertScript } from "@/lib/repositories/script-repo";
 import { generateScript } from "@/lib/services/script-generator";
+import { generateVOScript } from "@/lib/services/vo-script-generator";
 import { applyTransform } from "@/lib/services/script-transforms";
 import type { ScriptTransform } from "@/lib/services/script-transforms";
 import type { FailResult } from "@/lib/result";
@@ -16,8 +17,10 @@ import { loadUserKeys } from "./_load-keys";
 
 export async function generateScriptAction(
   campaignId: string,
-  conceptId: string
-): Promise<{ success: true; script: Script } | FailResult> {
+  conceptId: string,
+  durationSeconds: number = 30,
+  customPrompt?: string
+): Promise<{ success: true; script: Script; taggedScript: string; scriptProvider: string; voProvider: string } | FailResult> {
   try {
     await loadUserKeys();
     const [campaign, concepts] = await Promise.all([
@@ -30,7 +33,23 @@ export async function generateScriptAction(
     const concept = concepts.find((c) => c.id === conceptId);
     if (!concept) return { success: false, error: "Concept not found." };
 
-    const generated = await generateScript({ campaign, concept });
+    const generated = await generateScript({ campaign, concept, durationSeconds, customPrompt });
+
+    // Also generate the ElevenLabs-tagged version in the same request
+    let taggedScript = "";
+    let voProvider = "none";
+    try {
+      const vo = await generateVOScript({
+        campaign,
+        hook: generated.hook,
+        body: generated.body,
+        cta: generated.cta,
+      });
+      taggedScript = vo.taggedScript;
+      voProvider = vo.provider ?? "mock";
+    } catch {
+      // Non-fatal — ElevenLabs preview is optional
+    }
 
     const script = await upsertScript({
       campaignId,
@@ -44,8 +63,9 @@ export async function generateScriptAction(
       metadata: generated.metadata,
     });
 
+    const scriptProvider = String(generated.metadata?.provider ?? "mock");
     revalidatePath(`/campaigns/${campaignId}/script`);
-    return { success: true, script };
+    return { success: true, script, taggedScript, scriptProvider, voProvider };
   } catch (err) {
     console.error("generateScriptAction:", err);
     return actionFail(err, "Failed to generate script.");

@@ -1,6 +1,6 @@
 import type { CampaignVersionRow } from "@/types/database";
 
-export const mockVersionRows: CampaignVersionRow[] = [
+const DEFAULT_VERSIONS: CampaignVersionRow[] = [
   {
     id: "ver-1",
     campaign_id: "camp-1",
@@ -9,3 +9,8 @@ export const mockVersionRows: CampaignVersionRow[] = [
     created_at: "2025-12-06T00:00:00Z",
   },
 ];
+
+type MockStore = { _mockVersionRows?: CampaignVersionRow[] };
+const g = globalThis as typeof globalThis & MockStore;
+if (!g._mockVersionRows) g._mockVersionRows = [...DEFAULT_VERSIONS];
+export const mockVersionRows = g._mockVersionRows;

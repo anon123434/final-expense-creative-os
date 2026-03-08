@@ -6,16 +6,21 @@
  * Call this early in any action that triggers LLM generation.
  */
 
-import { createClient } from "@/lib/supabase/server";
 import { loadSettingsKeys } from "@/lib/config/settings-loader";
 
 export async function loadUserKeys(): Promise<void> {
+  // Resolve user ID — try Supabase auth, but always fall back to the mock
+  // user ID so local-file settings are loaded even without a DB connection.
+  let userId = "user-mock-001";
   try {
+    const { createClient } = await import("@/lib/supabase/server");
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    const userId = user?.id ?? "user-mock-001";
-    await loadSettingsKeys(userId);
+    if (user?.id) userId = user.id;
   } catch {
-    // Non-fatal — providers will fall back to env vars
+    // Supabase unreachable — use mock user ID
   }
+
+  // Always load settings keys regardless of whether Supabase auth succeeded.
+  await loadSettingsKeys(userId);
 }

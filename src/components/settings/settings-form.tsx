@@ -70,31 +70,27 @@ interface SettingsFormProps {
 }
 
 export function SettingsForm({ maskedKeys }: SettingsFormProps) {
-  const [values, setValues] = useState<SettingsFormData>(() => ({
-    claudeApiKey: maskedKeys.claudeApiKey ?? "",
-    openaiApiKey: maskedKeys.openaiApiKey ?? "",
-    elevenlabsApiKey: maskedKeys.elevenlabsApiKey ?? "",
-    seedreamApiKey: maskedKeys.seedreamApiKey ?? "",
-    geminiApiKey: maskedKeys.geminiApiKey ?? "",
-    klingApiKey: maskedKeys.klingApiKey ?? "",
-  }));
+  // Fields always start empty — a non-empty value means "replace the key"
+  // Leaving a field empty means "keep the existing key"
+  const [values, setValues] = useState<SettingsFormData>({
+    claudeApiKey: "",
+    openaiApiKey: "",
+    elevenlabsApiKey: "",
+    seedreamApiKey: "",
+    geminiApiKey: "",
+    klingApiKey: "",
+  });
 
   const [showKey, setShowKey] = useState<Record<string, boolean>>({});
   const [saving, startSaving] = useTransition();
   const [status, setStatus] = useState<"idle" | "saved" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
+  // Track which keys are currently saved (so we can show the indicator)
+  const [savedMasked, setSavedMasked] = useState<Record<string, string>>(maskedKeys);
 
   function handleChange(key: keyof SettingsFormData, value: string) {
     setValues((prev) => ({ ...prev, [key]: value }));
     setStatus("idle");
-  }
-
-  function handleFocus(key: keyof SettingsFormData) {
-    // Clear masked placeholder on focus so user can type a new key
-    const current = values[key];
-    if (current && /••••/.test(current)) {
-      setValues((prev) => ({ ...prev, [key]: "" }));
-    }
   }
 
   function toggleVisibility(key: string) {
@@ -107,6 +103,16 @@ export function SettingsForm({ maskedKeys }: SettingsFormProps) {
       const result = await saveSettingsAction(values);
       if (result.success) {
         setStatus("saved");
+        // Update the saved indicators and clear the inputs
+        setSavedMasked(result.maskedKeys ?? savedMasked);
+        setValues({
+          claudeApiKey: "",
+          openaiApiKey: "",
+          elevenlabsApiKey: "",
+          seedreamApiKey: "",
+          geminiApiKey: "",
+          klingApiKey: "",
+        });
         setTimeout(() => setStatus("idle"), 3000);
       } else {
         setStatus("error");
@@ -138,9 +144,9 @@ export function SettingsForm({ maskedKeys }: SettingsFormProps) {
               key={field.key}
               field={field}
               value={values[field.key]}
+              existingMasked={savedMasked[field.key] ?? ""}
               visible={!!showKey[field.key]}
               onChange={(v) => handleChange(field.key, v)}
-              onFocus={() => handleFocus(field.key)}
               onToggleVisibility={() => toggleVisibility(field.key)}
               disabled={saving}
             />
@@ -163,9 +169,9 @@ export function SettingsForm({ maskedKeys }: SettingsFormProps) {
               key={field.key}
               field={field}
               value={values[field.key]}
+              existingMasked={savedMasked[field.key] ?? ""}
               visible={!!showKey[field.key]}
               onChange={(v) => handleChange(field.key, v)}
-              onFocus={() => handleFocus(field.key)}
               onToggleVisibility={() => toggleVisibility(field.key)}
               disabled={saving}
             />
@@ -203,9 +209,9 @@ export function SettingsForm({ maskedKeys }: SettingsFormProps) {
 interface KeyFieldProps {
   field: KeyFieldConfig;
   value: string;
+  existingMasked: string;
   visible: boolean;
   onChange: (value: string) => void;
-  onFocus: () => void;
   onToggleVisibility: () => void;
   disabled: boolean;
 }
@@ -213,14 +219,13 @@ interface KeyFieldProps {
 function KeyField({
   field,
   value,
+  existingMasked,
   visible,
   onChange,
-  onFocus,
   onToggleVisibility,
   disabled,
 }: KeyFieldProps) {
-  const hasValue = !!value && !/^••••/.test(value) && value.trim().length > 0;
-  const hasMasked = !!value && /••••/.test(value);
+  const isSaved = !!existingMasked;
 
   return (
     <div className="space-y-1.5">
@@ -228,9 +233,10 @@ function KeyField({
         <label className="text-sm font-medium leading-none">
           {field.label}
         </label>
-        {(hasValue || hasMasked) && (
-          <span className="text-[10px] font-medium text-emerald-600">
-            Configured
+        {isSaved && (
+          <span className="flex items-center gap-1 text-[10px] font-medium text-emerald-600">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            Saved: {existingMasked}
           </span>
         )}
       </div>
@@ -240,8 +246,7 @@ function KeyField({
           type={visible ? "text" : "password"}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          onFocus={onFocus}
-          placeholder={field.placeholder}
+          placeholder={isSaved ? "Enter new key to replace…" : field.placeholder}
           disabled={disabled}
           autoComplete="off"
           className={cn(

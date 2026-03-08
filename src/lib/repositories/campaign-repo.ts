@@ -66,6 +66,7 @@ export async function createCampaign(userId: string, data: CampaignFormData): Pr
         affordability_text: data.affordabilityText ?? null,
         cta_style: data.ctaStyle ?? null,
         notes: data.notes ?? null,
+        persona_image_url: data.personaImageUrl ?? null,
       })
       .select()
       .single();
@@ -76,25 +77,28 @@ export async function createCampaign(userId: string, data: CampaignFormData): Pr
 
   await new Promise((r) => setTimeout(r, 300));
   const now = new Date().toISOString();
-  return {
+  const mockRow: CampaignRow = {
     id: `camp-${Date.now()}`,
-    userId,
+    user_id: userId,
     title: data.title,
-    offerName: data.offerName ?? null,
-    personaId: data.personaId ?? null,
-    archetypeId: data.archetypeId ?? null,
-    emotionalTone: data.emotionalTone ?? null,
-    durationSeconds: data.durationSeconds ?? null,
-    phoneNumber: data.phoneNumber ?? null,
-    phoneNumberPhonetic: data.phoneNumberPhonetic ?? null,
-    deadlineText: data.deadlineText ?? null,
-    benefitAmount: data.benefitAmount ?? null,
-    affordabilityText: data.affordabilityText ?? null,
-    ctaStyle: data.ctaStyle ?? null,
+    offer_name: data.offerName ?? null,
+    persona_id: data.personaId ?? null,
+    archetype_id: data.archetypeId ?? null,
+    emotional_tone: data.emotionalTone ?? null,
+    duration_seconds: data.durationSeconds ?? null,
+    phone_number: data.phoneNumber ?? null,
+    phone_number_phonetic: data.phoneNumberPhonetic ?? null,
+    deadline_text: data.deadlineText ?? null,
+    benefit_amount: data.benefitAmount ?? null,
+    affordability_text: data.affordabilityText ?? null,
+    cta_style: data.ctaStyle ?? null,
     notes: data.notes ?? null,
-    createdAt: now,
-    updatedAt: now,
+    persona_image_url: data.personaImageUrl ?? null,
+    created_at: now,
+    updated_at: now,
   };
+  mockCampaignRows.push(mockRow);
+  return toCampaign(mockRow);
 }
 
 export async function duplicateCampaign(id: string, userId: string): Promise<Campaign | null> {
