@@ -16,21 +16,24 @@ test.describe('Settings', () => {
   });
 
   test('can type into Claude API key field', async ({ page }) => {
-    const input = page.locator('input[placeholder="sk-ant-api03-…"]');
+    // Find the first password/text input in the settings form (Claude key is first)
+    const input = page.locator('input[type="password"], input[type="text"]').first();
     await input.focus();
     await input.fill('sk-ant-test-key-123');
     await expect(input).toHaveValue('sk-ant-test-key-123');
   });
 
   test('can type into OpenAI API key field', async ({ page }) => {
-    const input = page.locator('input[placeholder="sk-…"]');
+    // OpenAI is the second key field
+    const input = page.locator('input[type="password"], input[type="text"]').nth(1);
     await input.focus();
     await input.fill('sk-openai-test-key-123');
     await expect(input).toHaveValue('sk-openai-test-key-123');
   });
 
   test('save settings succeeds (local file fallback)', async ({ page }) => {
-    const input = page.locator('input[placeholder="sk-ant-api03-…"]');
+    // Type into first input (Claude key)
+    const input = page.locator('input[type="password"], input[type="text"]').first();
     await input.focus();
     await input.fill('sk-ant-test-key-000');
 

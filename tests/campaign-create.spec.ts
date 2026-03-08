@@ -38,7 +38,7 @@ test.describe('Campaign Creation', () => {
 
     await page.selectOption('#personaId', { index: 1 });
     await page.selectOption('#emotionalTone', { index: 1 });
-    await page.getByRole('button', { name: '60 seconds' }).click();
+    await page.getByRole('button', { name: '60s' }).click();
 
     await page.getByRole('button', { name: 'Create Campaign' }).click();
     await expect(page).toHaveURL(/\/campaigns\/camp-/, { timeout: 10000 });
