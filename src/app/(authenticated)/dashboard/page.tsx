@@ -35,16 +35,28 @@ export default async function DashboardPage() {
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Campaigns</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1
+            className="text-3xl font-bold uppercase tracking-widest"
+            style={{
+              fontFamily: "'Barlow Condensed', sans-serif",
+              color: "#DEDEDE",
+              letterSpacing: "0.08em",
+            }}
+          >
+            Campaigns
+          </h1>
+          <p
+            className="mt-1 text-[11px] tracking-widest uppercase"
+            style={{ color: "#2A2A2A", fontFamily: "'JetBrains Mono', monospace" }}
+          >
             {campaigns.length === 0
-              ? "No campaigns yet"
-              : `${campaigns.length} campaign${campaigns.length === 1 ? "" : "s"}`}
+              ? "No active campaigns"
+              : `${campaigns.length} campaign${campaigns.length === 1 ? "" : "s"} active`}
           </p>
         </div>
         <Link href="/campaigns/new">
-          <Button className="gap-2">
-            <PlusCircle className="h-4 w-4" />
+          <Button className="gap-2 text-xs font-bold uppercase tracking-wider">
+            <PlusCircle className="h-3.5 w-3.5" />
             New Campaign
           </Button>
         </Link>
