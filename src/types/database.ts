@@ -22,6 +22,7 @@ export interface CampaignRow {
   cta_style: string | null;
   notes: string | null;
   persona_image_url: string | null;
+  avatar_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -59,6 +60,7 @@ export interface CampaignUpdate {
   cta_style?: string | null;
   notes?: string | null;
   persona_image_url?: string | null;
+  avatar_id?: string | null;
 }
 
 export interface CampaignTriggerRow {
@@ -261,4 +263,36 @@ export interface CreativeVariationInsert {
   image_prompt_examples?: string[] | null;
   kling_prompt_examples?: string[] | null;
   raw_output?: Record<string, unknown> | null;
+}
+
+// ── Avatars ──────────────────────────────────────────────────────────────
+
+export interface AvatarRow {
+  id: string;
+  user_id: string;
+  name: string;
+  prompt: string;
+  expanded_prompt: string | null;
+  mode: string;
+  aspect_ratio: string;
+  reference_image_url: string | null;
+  image_urls: string[];
+  created_at: string;
+}
+
+export interface AvatarInsert {
+  user_id: string;
+  name: string;
+  prompt: string;
+  expanded_prompt?: string | null;
+  mode: string;
+  aspect_ratio: string;
+  reference_image_url?: string | null;
+  image_urls?: string[];
+}
+
+export interface AvatarUpdate {
+  name?: string;
+  image_urls?: string[];
+  avatar_id?: string | null;
 }

@@ -16,6 +16,7 @@ export interface Campaign {
   ctaStyle: string | null;
   notes: string | null;
   personaImageUrl: string | null;
+  avatarId: string | null;
   createdAt: string;
   updatedAt: string;
 }
