@@ -32,7 +32,7 @@ export default async function VisualPlanPage({ params }: VisualPlanPageProps) {
       scripts={scripts}
       initialPlan={initialPlan}
       initialScriptId={defaultScript?.id ?? null}
-      avatarImageUrl={avatar?.imageUrls?.[0] ?? null}
+      avatarImageUrls={avatar?.imageUrls ?? null}
     />
   );
 }

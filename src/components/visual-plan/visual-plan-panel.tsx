@@ -15,7 +15,7 @@ interface VisualPlanPanelProps {
   scripts: Script[];
   initialPlan: VisualPlan | null;
   initialScriptId: string | null;
-  avatarImageUrl?: string | null;
+  avatarImageUrls?: string[] | null;
 }
 
 export function VisualPlanPanel({
@@ -23,7 +23,7 @@ export function VisualPlanPanel({
   scripts,
   initialPlan,
   initialScriptId,
-  avatarImageUrl,
+  avatarImageUrls,
 }: VisualPlanPanelProps) {
   const [scriptId, setScriptId] = useState<string | null>(initialScriptId);
   const [plan, setPlan] = useState<VisualPlan | null>(initialPlan);
@@ -125,11 +125,11 @@ export function VisualPlanPanel({
             Source Script
           </label>
           <ProviderBadge provider="openai" />
-          {avatarImageUrl && (
+          {avatarImageUrls && avatarImageUrls.length > 0 && (
             <div className="ml-auto flex items-center gap-1.5 rounded-full border border-border bg-muted/50 pl-0.5 pr-2 py-0.5">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={avatarImageUrl} alt="Avatar" className="h-5 w-5 rounded-full object-cover" />
-              <span className="text-[10px] font-medium text-muted-foreground">Avatar reference</span>
+              <img src={avatarImageUrls[0]} alt="Avatar" className="h-5 w-5 rounded-full object-cover" />
+              <span className="text-[10px] font-medium text-muted-foreground">Avatar reference · {avatarImageUrls.length} views</span>
             </div>
           )}
         </div>
@@ -234,7 +234,7 @@ export function VisualPlanPanel({
                   scene={scene}
                   onChange={handleSceneChange}
                   campaignId={campaignId}
-                  avatarImageUrl={avatarImageUrl}
+                  avatarImageUrls={avatarImageUrls}
                 />
               ))}
             </div>

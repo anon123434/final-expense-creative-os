@@ -10,12 +10,12 @@ interface SceneCardProps {
   scene: SceneCard;
   onChange: (updated: SceneCard) => void;
   campaignId: string;
-  avatarImageUrl?: string | null;
+  avatarImageUrls?: string[] | null;
 }
 
 type EditableField = keyof Omit<SceneCard, "sceneNumber" | "sceneType">;
 
-export function SceneCardItem({ scene, onChange, campaignId, avatarImageUrl }: SceneCardProps) {
+export function SceneCardItem({ scene, onChange, campaignId, avatarImageUrls }: SceneCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [generatingImage, setGeneratingImage] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
@@ -36,7 +36,7 @@ export function SceneCardItem({ scene, onChange, campaignId, avatarImageUrl }: S
       campaignId,
       scene.sceneNumber,
       scene.imagePrompt,
-      avatarImageUrl
+      avatarImageUrls
     );
     setGeneratingImage(false);
     if (result.success) {

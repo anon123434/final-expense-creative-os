@@ -9,18 +9,24 @@ interface GeminiPart {
 
 /**
  * Call Gemini image generation and return raw base64 + mimeType.
- * Accepts an optional reference image as a data URL ("data:image/jpeg;base64,...").
+ * Accepts one or more reference images as data URLs ("data:image/jpeg;base64,...").
+ * When references are provided, the model uses them for subject/character consistency.
  */
 export async function generateSingleImage(
   prompt: string,
-  referenceImageBase64?: string | null
+  referenceImages?: string | string[] | null
 ): Promise<{ base64: string; mimeType: string }> {
   const apiKey = resolveGeminiApiKey()!;
 
   const parts: GeminiPart[] = [];
 
-  if (referenceImageBase64) {
-    const match = referenceImageBase64.match(/^data:([^;]+);base64,(.+)$/);
+  // Add reference images before the prompt text for better subject grounding
+  const refs = referenceImages
+    ? Array.isArray(referenceImages) ? referenceImages : [referenceImages]
+    : [];
+
+  for (const ref of refs) {
+    const match = ref.match(/^data:([^;]+);base64,(.+)$/);
     if (match) {
       parts.push({ inlineData: { mimeType: match[1], data: match[2] } });
     }

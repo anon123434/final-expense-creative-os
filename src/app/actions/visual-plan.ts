@@ -71,7 +71,7 @@ export async function generateSceneImageAction(
   campaignId: string,
   sceneIndex: number,
   imagePrompt: string,
-  avatarImageUrl?: string | null
+  avatarImageUrls?: string[] | null
 ): Promise<ActionResult<{ url: string }>> {
   try {
     await loadUserKeys();
@@ -80,20 +80,29 @@ export async function generateSceneImageAction(
       return actionFail(null, "No Gemini API key configured. Add one in Settings.");
     }
 
-    // Fetch avatar image as base64 reference if provided
-    let refBase64: string | null = null;
-    if (avatarImageUrl) {
-      try {
-        const res = await fetch(avatarImageUrl);
-        const buf = await res.arrayBuffer();
-        const mimeType = res.headers.get("content-type") ?? "image/jpeg";
-        refBase64 = `data:${mimeType};base64,${Buffer.from(buf).toString("base64")}`;
-      } catch {
-        // If avatar fetch fails, proceed without reference
-      }
+    // Fetch all avatar images as base64 references for character consistency
+    const refImages: string[] = [];
+    if (avatarImageUrls?.length) {
+      await Promise.all(
+        avatarImageUrls.map(async (url) => {
+          try {
+            const res = await fetch(url);
+            const buf = await res.arrayBuffer();
+            const mimeType = res.headers.get("content-type") ?? "image/jpeg";
+            refImages.push(`data:${mimeType};base64,${Buffer.from(buf).toString("base64")}`);
+          } catch {
+            // Skip images that fail to fetch
+          }
+        })
+      );
     }
 
-    const { base64, mimeType } = await generateSingleImage(imagePrompt, refBase64);
+    // Append identity instruction when reference images are provided
+    const prompt = refImages.length > 0
+      ? `${imagePrompt}\n\nIMPORTANT: Maintain the exact same face and identity from the reference image.`
+      : imagePrompt;
+
+    const { base64, mimeType } = await generateSingleImage(prompt, refImages.length ? refImages : null);
     const url = await uploadGeneratedImage(
       `generated/scenes/${campaignId}/${sceneIndex}.png`,
       base64,
