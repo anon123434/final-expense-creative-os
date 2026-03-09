@@ -6,6 +6,8 @@ import { getPersonaByKey } from "@/lib/seed/personas";
 import { getArchetypeByKey } from "@/lib/seed/archetypes";
 import { getToneByKey } from "@/lib/seed/tones";
 import { getTriggerByKey } from "@/lib/seed/triggers";
+import { getAvatarById } from "@/lib/repositories/avatar-repo";
+import { AvatarSection } from "@/components/avatars/avatar-section";
 
 interface OverviewPageProps {
   params: Promise<{ id: string }>;
@@ -29,6 +31,8 @@ export default async function OverviewTab({ params }: OverviewPageProps) {
   ]);
 
   if (!campaign) notFound();
+
+  const avatar = campaign.avatarId ? await getAvatarById(campaign.avatarId) : null;
 
   const persona = campaign.personaId ? getPersonaByKey(campaign.personaId) : null;
   const archetype = campaign.archetypeId ? getArchetypeByKey(campaign.archetypeId) : null;
@@ -66,6 +70,9 @@ export default async function OverviewTab({ params }: OverviewPageProps) {
 
   return (
     <div className="mx-auto max-w-3xl space-y-8">
+      {/* Active Avatar */}
+      <AvatarSection campaignId={id} avatar={avatar} />
+
       {/* Creative Brief */}
       {(persona || archetype || tone || campaign.durationSeconds || campaign.offerName) && (
         <section className="space-y-2">
