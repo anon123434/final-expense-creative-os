@@ -205,7 +205,7 @@ export function SceneCardItem({ scene, onChange, campaignId, avatarImageUrls }: 
                 >
                   <Sparkles className={cn("h-4 w-4", generatingImage && "animate-pulse")} />
                   {generatingImage ? "Generating image…" : "Generate Image"}
-                  {avatarImageUrl && !generatingImage && (
+                  {avatarImageUrls?.length && !generatingImage && (
                     <span className="text-[10px] text-violet-400 font-normal">· using avatar reference</span>
                   )}
                 </button>
