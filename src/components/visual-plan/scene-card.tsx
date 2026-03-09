@@ -1,19 +1,24 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronUp, Copy, Check, Clapperboard, Camera } from "lucide-react";
+import { ChevronDown, ChevronUp, Copy, Check, Clapperboard, Camera, Sparkles, Download } from "lucide-react";
 import type { SceneCard } from "@/types/scene";
 import { cn } from "@/lib/utils";
+import { generateSceneImageAction } from "@/app/actions/visual-plan";
 
 interface SceneCardProps {
   scene: SceneCard;
   onChange: (updated: SceneCard) => void;
+  campaignId: string;
+  avatarImageUrl?: string | null;
 }
 
 type EditableField = keyof Omit<SceneCard, "sceneNumber" | "sceneType">;
 
-export function SceneCardItem({ scene, onChange }: SceneCardProps) {
+export function SceneCardItem({ scene, onChange, campaignId, avatarImageUrl }: SceneCardProps) {
   const [expanded, setExpanded] = useState(false);
+  const [generatingImage, setGeneratingImage] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
 
   function update(field: EditableField, value: string) {
     onChange({ ...scene, [field]: value });
@@ -21,6 +26,24 @@ export function SceneCardItem({ scene, onChange }: SceneCardProps) {
 
   function toggleType() {
     onChange({ ...scene, sceneType: scene.sceneType === "A-roll" ? "B-roll" : "A-roll" });
+  }
+
+  async function handleGenerateImage() {
+    if (!scene.imagePrompt || generatingImage) return;
+    setGeneratingImage(true);
+    setImageError(null);
+    const result = await generateSceneImageAction(
+      campaignId,
+      scene.sceneNumber,
+      scene.imagePrompt,
+      avatarImageUrl
+    );
+    setGeneratingImage(false);
+    if (result.success) {
+      onChange({ ...scene, generatedImageUrl: result.data.url });
+    } else {
+      setImageError(result.error);
+    }
   }
 
   return (
@@ -67,6 +90,16 @@ export function SceneCardItem({ scene, onChange }: SceneCardProps) {
           )}
         </span>
 
+        {/* Generated image thumbnail in header */}
+        {scene.generatedImageUrl && !expanded && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={scene.generatedImageUrl}
+            alt="Generated"
+            className="h-8 w-14 rounded object-cover border border-border shrink-0"
+          />
+        )}
+
         {/* Expand chevron */}
         <span className="mt-0.5 shrink-0 text-muted-foreground">
           {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -109,14 +142,76 @@ export function SceneCardItem({ scene, onChange }: SceneCardProps) {
             />
           </div>
 
-          {/* Image prompt */}
+          {/* Image prompt + generate */}
           <CopyableField
-            label="Image Prompt (NanoBanana)"
+            label="Image Prompt"
             value={scene.imagePrompt}
             onChange={(v) => update("imagePrompt", v)}
             rows={3}
             accentColor="violet"
           />
+
+          {/* Generated image or generate button */}
+          <div className="space-y-2">
+            {scene.generatedImageUrl ? (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Generated Image
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={handleGenerateImage}
+                      disabled={generatingImage}
+                      className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-muted transition-colors disabled:opacity-50"
+                    >
+                      <Sparkles className="h-3 w-3" />
+                      {generatingImage ? "Regenerating…" : "Regenerate"}
+                    </button>
+                  </div>
+                </div>
+                <div className="group relative aspect-video w-full overflow-hidden rounded-lg border border-border">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={scene.generatedImageUrl}
+                    alt={`Scene ${scene.sceneNumber}`}
+                    className="h-full w-full object-cover"
+                  />
+                  <a
+                    href={scene.generatedImageUrl}
+                    download={`scene-${scene.sceneNumber}.jpg`}
+                    className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-md bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80"
+                    title="Download image"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                  </a>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                {imageError && (
+                  <p className="text-xs text-destructive">{imageError}</p>
+                )}
+                <button
+                  type="button"
+                  onClick={handleGenerateImage}
+                  disabled={generatingImage || !scene.imagePrompt}
+                  className={cn(
+                    "flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed py-4 text-sm font-medium transition-colors",
+                    "border-violet-200 text-violet-600 hover:bg-violet-50/50 hover:border-violet-300",
+                    "disabled:cursor-not-allowed disabled:opacity-50"
+                  )}
+                >
+                  <Sparkles className={cn("h-4 w-4", generatingImage && "animate-pulse")} />
+                  {generatingImage ? "Generating image…" : "Generate Image"}
+                  {avatarImageUrl && !generatingImage && (
+                    <span className="text-[10px] text-violet-400 font-normal">· using avatar reference</span>
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
 
           {/* Kling prompt */}
           <CopyableField

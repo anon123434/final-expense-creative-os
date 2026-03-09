@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getCampaignById } from "@/lib/repositories/campaign-repo";
 import { getScriptsByCampaign } from "@/lib/repositories/script-repo";
 import { getLatestVisualPlanForScript } from "@/lib/repositories/visual-plan-repo";
+import { getAvatarById } from "@/lib/repositories/avatar-repo";
 import { VisualPlanPanel } from "@/components/visual-plan/visual-plan-panel";
 
 interface VisualPlanPageProps {
@@ -20,9 +21,10 @@ export default async function VisualPlanPage({ params }: VisualPlanPageProps) {
 
   const defaultScript = scripts[0] ?? null;
 
-  const initialPlan = defaultScript
-    ? await getLatestVisualPlanForScript(id, defaultScript.id)
-    : null;
+  const [initialPlan, avatar] = await Promise.all([
+    defaultScript ? getLatestVisualPlanForScript(id, defaultScript.id) : Promise.resolve(null),
+    campaign.avatarId ? getAvatarById(campaign.avatarId) : Promise.resolve(null),
+  ]);
 
   return (
     <VisualPlanPanel
@@ -30,6 +32,7 @@ export default async function VisualPlanPage({ params }: VisualPlanPageProps) {
       scripts={scripts}
       initialPlan={initialPlan}
       initialScriptId={defaultScript?.id ?? null}
+      avatarImageUrl={avatar?.imageUrls?.[0] ?? null}
     />
   );
 }

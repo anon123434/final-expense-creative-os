@@ -1,5 +1,6 @@
 import OpenAI from "openai";
-import { resolveOpenAIApiKey, resolveGeminiApiKey, hasGeminiKey } from "@/lib/config/env";
+import { resolveOpenAIApiKey, hasGeminiKey } from "@/lib/config/env";
+import { generateSingleImage, uploadGeneratedImage } from "@/lib/services/gemini-image";
 import type { AvatarMode, AspectRatio } from "@/types/avatar";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -117,107 +118,6 @@ Return a JSON object: { "prompts": ["prompt1", "prompt2", "prompt3", "prompt4"] 
   return labels.map((l, i) => prompts[i] ?? `${input.prompt} — ${l}`);
 }
 
-// ── Gemini image generation ────────────────────────────────────────────────
-
-interface GeminiPart {
-  text?: string;
-  inlineData?: { mimeType: string; data: string };
-}
-
-async function callGemini(
-  prompt: string,
-  referenceImageBase64: string | null | undefined
-): Promise<{ base64: string; mimeType: string }> {
-  const apiKey = resolveGeminiApiKey()!;
-
-  const parts: GeminiPart[] = [];
-
-  if (referenceImageBase64) {
-    const match = referenceImageBase64.match(/^data:([^;]+);base64,(.+)$/);
-    if (match) {
-      parts.push({ inlineData: { mimeType: match[1], data: match[2] } });
-    }
-  }
-
-  parts.push({ text: prompt });
-
-  const body = {
-    contents: [{ role: "user", parts }],
-    generationConfig: { responseModalities: ["IMAGE", "TEXT"] },
-  };
-
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-goog-api-key": apiKey,
-      },
-      body: JSON.stringify(body),
-    }
-  );
-
-  if (!res.ok) {
-    const text = await res.text();
-    console.error(`[Gemini] HTTP ${res.status}:`, text.slice(0, 500));
-    throw new Error(`Gemini API error ${res.status}: ${text}`);
-  }
-
-  const json = await res.json() as {
-    candidates?: Array<{
-      content?: { parts?: Array<{ inlineData?: { mimeType: string; data: string }; text?: string }> };
-      finishReason?: string;
-    }>;
-    error?: { code: number; message: string };
-  };
-
-  const imagePart = json.candidates?.[0]?.content?.parts?.find((p) => p.inlineData);
-  if (!imagePart?.inlineData) {
-    throw new Error("Gemini returned no image in response");
-  }
-
-  return {
-    base64: imagePart.inlineData.data,
-    mimeType: imagePart.inlineData.mimeType,
-  };
-}
-
-// ── Storage upload ─────────────────────────────────────────────────────────
-
-async function uploadToStorage(
-  avatarId: string,
-  index: number,
-  base64: string,
-  mimeType: string
-): Promise<string> {
-  try {
-    const { hasSupabaseConfig, getSupabaseServerClient } = await import(
-      "@/lib/supabase/repo-helpers"
-    );
-    if (!hasSupabaseConfig()) {
-      return `data:${mimeType};base64,${base64}`;
-    }
-
-    const supabase = await getSupabaseServerClient();
-    const buffer = Buffer.from(base64, "base64");
-    const path = `generated/${avatarId}/${index}.png`;
-
-    const { error } = await supabase.storage
-      .from("avatars")
-      .upload(path, buffer, { contentType: "image/png", upsert: true });
-
-    if (error) {
-      console.warn("Storage upload failed, using data URL:", error.message);
-      return `data:${mimeType};base64,${base64}`;
-    }
-
-    const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(path);
-    return publicUrl;
-  } catch {
-    return `data:${mimeType};base64,${base64}`;
-  }
-}
 
 // ── Main export ────────────────────────────────────────────────────────────
 
@@ -236,11 +136,11 @@ export async function generateAvatar(
   const results = await Promise.all(
     expandedPrompts.map(async (prompt, index) => {
       try {
-        const { base64, mimeType } = await callGemini(
+        const { base64, mimeType } = await generateSingleImage(
           prompt,
           input.referenceImageBase64
         );
-        const url = await uploadToStorage(input.avatarId, index, base64, mimeType);
+        const url = await uploadGeneratedImage(`generated/${input.avatarId}/${index}.png`, base64, mimeType);
         return { index, label: labels[index], base64: url, mimeType };
       } catch (err) {
         const message = err instanceof Error ? err.message : "Generation failed";

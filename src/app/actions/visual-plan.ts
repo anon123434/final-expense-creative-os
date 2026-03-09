@@ -5,8 +5,10 @@ import { getCampaignById } from "@/lib/repositories/campaign-repo";
 import { getScriptsByCampaign } from "@/lib/repositories/script-repo";
 import { upsertVisualPlan } from "@/lib/repositories/visual-plan-repo";
 import { generateVisualPlan } from "@/lib/services/visual-plan-generator";
+import { generateSingleImage, uploadGeneratedImage } from "@/lib/services/gemini-image";
+import { hasGeminiKey } from "@/lib/config/env";
 import type { FailResult } from "@/lib/result";
-import { actionFail } from "@/lib/result";
+import { actionFail, actionOk, type ActionResult } from "@/lib/result";
 import type { VisualPlan } from "@/types";
 import type { SceneCard } from "@/types/scene";
 import { loadUserKeys } from "./_load-keys";
@@ -55,6 +57,48 @@ export async function generateVisualPlanAction(
   } catch (err) {
     console.error("generateVisualPlanAction:", err);
     return actionFail(err, "Failed to generate visual plan.");
+  }
+}
+
+// ── Generate scene image ───────────────────────────────────────────────────
+
+export async function generateSceneImageAction(
+  campaignId: string,
+  sceneIndex: number,
+  imagePrompt: string,
+  avatarImageUrl?: string | null
+): Promise<ActionResult<{ url: string }>> {
+  try {
+    await loadUserKeys();
+
+    if (!hasGeminiKey()) {
+      return actionFail(null, "No Gemini API key configured. Add one in Settings.");
+    }
+
+    // Fetch avatar image as base64 reference if provided
+    let refBase64: string | null = null;
+    if (avatarImageUrl) {
+      try {
+        const res = await fetch(avatarImageUrl);
+        const buf = await res.arrayBuffer();
+        const mimeType = res.headers.get("content-type") ?? "image/jpeg";
+        refBase64 = `data:${mimeType};base64,${Buffer.from(buf).toString("base64")}`;
+      } catch {
+        // If avatar fetch fails, proceed without reference
+      }
+    }
+
+    const { base64, mimeType } = await generateSingleImage(imagePrompt, refBase64);
+    const url = await uploadGeneratedImage(
+      `generated/scenes/${campaignId}/${sceneIndex}.png`,
+      base64,
+      mimeType
+    );
+
+    return actionOk({ url });
+  } catch (err) {
+    console.error("generateSceneImageAction:", err);
+    return actionFail(err, "Failed to generate scene image.");
   }
 }
 
