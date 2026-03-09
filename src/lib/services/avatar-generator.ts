@@ -32,9 +32,18 @@ const ENVIRONMENT_LABELS = ["Scene 1", "Scene 2", "Scene 3", "Scene 4"];
 
 // ── Mock fallback ──────────────────────────────────────────────────────────
 
-// A 1×1 transparent PNG in base64
-const MOCK_PNG_BASE64 =
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+// Visible grey placeholder SVG — makes mock mode obvious instead of showing blank boxes
+function makeMockSvg(label: string): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360">
+  <rect width="640" height="360" fill="#1a1a1a"/>
+  <rect x="1" y="1" width="638" height="358" fill="none" stroke="#333" stroke-width="2" stroke-dasharray="8 4"/>
+  <text x="320" y="160" font-family="monospace" font-size="13" fill="#555" text-anchor="middle">MOCK · NO GEMINI KEY</text>
+  <text x="320" y="185" font-family="monospace" font-size="11" fill="#444" text-anchor="middle">${label}</text>
+  <text x="320" y="215" font-family="monospace" font-size="10" fill="#333" text-anchor="middle">Add Gemini API key in Settings</text>
+</svg>`;
+  const b64 = Buffer.from(svg).toString("base64");
+  return `data:image/svg+xml;base64,${b64}`;
+}
 
 function getMockResult(mode: AvatarMode): GenerateAvatarResult {
   const labels = mode === "likeness_only" ? LIKENESS_LABELS : ENVIRONMENT_LABELS;
@@ -43,8 +52,8 @@ function getMockResult(mode: AvatarMode): GenerateAvatarResult {
     images: labels.map((label, index) => ({
       index,
       label,
-      base64: `data:image/png;base64,${MOCK_PNG_BASE64}`,
-      mimeType: "image/png",
+      base64: makeMockSvg(label),
+      mimeType: "image/svg+xml",
     })),
     usedMock: true,
   };
@@ -138,7 +147,7 @@ async function callGemini(
   };
 
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent`,
     {
       method: "POST",
       headers: {

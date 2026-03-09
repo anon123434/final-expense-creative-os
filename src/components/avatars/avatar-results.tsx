@@ -40,8 +40,12 @@ export function AvatarResults({
 
       {/* Mock warning */}
       {usedMock && !generating && (
-        <div className="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-600 dark:text-amber-400">
-          No Gemini API key found — showing placeholder images. Add your key in Settings.
+        <div className="rounded-md border border-amber-500/60 bg-amber-500/10 px-4 py-3 text-sm font-medium text-amber-600 dark:text-amber-400 flex items-start gap-2">
+          <span className="text-amber-500 shrink-0">⚠</span>
+          <span>
+            <strong>No Gemini API key found</strong> — images above are placeholders.{" "}
+            Go to <strong>Settings</strong> and add your Gemini API key to generate real images.
+          </span>
         </div>
       )}
 
