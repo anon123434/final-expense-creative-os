@@ -94,6 +94,7 @@ export async function createCampaign(userId: string, data: CampaignFormData): Pr
     cta_style: data.ctaStyle ?? null,
     notes: data.notes ?? null,
     persona_image_url: data.personaImageUrl ?? null,
+    avatar_id: null,
     created_at: now,
     updated_at: now,
   };

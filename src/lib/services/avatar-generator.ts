@@ -240,7 +240,7 @@ export async function generateAvatar(
   return {
     expandedPrompts,
     images: results.map((r) => {
-      if ("error" in r) return { index: r.index, label: r.label, error: r.error };
+      if ("error" in r) return { index: r.index, label: r.label, error: r.error as string };
       return { index: r.index, label: r.label, base64: r.base64, mimeType: r.mimeType };
     }),
     usedMock: false,

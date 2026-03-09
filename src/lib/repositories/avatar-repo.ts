@@ -101,5 +101,5 @@ export async function attachAvatarToCampaign(
   // Mock fallback
   const { mockCampaignRows } = await import("@/lib/mock/campaigns");
   const campaign = mockCampaignRows.find((c: { id: string }) => c.id === campaignId);
-  if (campaign) (campaign as Record<string, unknown>).avatar_id = avatarId;
+  if (campaign) campaign.avatar_id = avatarId;
 }
