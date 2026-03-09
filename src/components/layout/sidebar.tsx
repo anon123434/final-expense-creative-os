@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, PlusCircle, Settings, Zap } from "lucide-react";
+import { LayoutDashboard, PlusCircle, Settings, UserCircle, Zap } from "lucide-react";
 
 const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "New Campaign", href: "/campaigns/new", icon: PlusCircle },
+  { label: "Avatars", href: "/avatars", icon: UserCircle },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
 
