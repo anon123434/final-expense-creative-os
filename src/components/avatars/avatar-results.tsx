@@ -1,8 +1,40 @@
 "use client";
 
-import { RotateCcw, AlertCircle } from "lucide-react";
+import { RotateCcw, AlertCircle, Download, Archive } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Avatar, AvatarMode } from "@/types/avatar";
+
+async function downloadImage(url: string, filename: string) {
+  const res = await fetch(url);
+  const blob = await res.blob();
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+async function downloadZip(imageUrls: string[], labels: string[], name: string) {
+  const JSZip = (await import("jszip")).default;
+  const zip = new JSZip();
+  const folder = zip.folder(name) ?? zip;
+
+  await Promise.all(
+    imageUrls.map(async (url, i) => {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const ext = blob.type.includes("png") ? "png" : "jpg";
+      folder.file(`${i + 1}-${labels[i]}.${ext}`, blob);
+    })
+  );
+
+  const content = await zip.generateAsync({ type: "blob" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(content);
+  a.download = `${name}.zip`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
 
 interface AvatarResultsProps {
   generating: boolean;
@@ -101,17 +133,27 @@ export function AvatarResults({
               </p>
               <div
                 className={cn(
-                  "relative aspect-video w-full overflow-hidden rounded-lg border border-border bg-muted",
+                  "group relative aspect-video w-full overflow-hidden rounded-lg border border-border bg-muted",
                   generating && !imageUrls[i] && "animate-pulse"
                 )}
               >
                 {imageUrls[i] && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={imageUrls[i]}
-                    alt={label}
-                    className="h-full w-full object-cover transition-opacity duration-500"
-                  />
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={imageUrls[i]}
+                      alt={label}
+                      className="h-full w-full object-cover transition-opacity duration-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => downloadImage(imageUrls[i], `avatar-${label.toLowerCase().replace(/\s+/g, "-")}.jpg`)}
+                      className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-md bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80"
+                      title={`Download ${label}`}
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                    </button>
+                  </>
                 )}
                 {generating && !imageUrls[i] && (
                   <div className="absolute inset-0 flex items-center justify-center">
@@ -170,6 +212,14 @@ export function AvatarResults({
               {saving ? "Saving…" : "Save"}
             </button>
           </div>
+          <button
+            type="button"
+            onClick={() => downloadZip(imageUrls, labels, pendingName || "avatar")}
+            className="flex w-full items-center justify-center gap-2 rounded-md border border-border bg-muted/50 px-4 py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+          >
+            <Archive className="h-4 w-4" />
+            Download All as ZIP
+          </button>
         </div>
       )}
     </div>
