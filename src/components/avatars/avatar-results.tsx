@@ -6,6 +6,7 @@ import type { Avatar, AvatarMode } from "@/types/avatar";
 
 interface AvatarResultsProps {
   generating: boolean;
+  elapsedSeconds: number;
   mode: AvatarMode;
   generatedAvatar: Avatar | null;
   error: string | null;
@@ -16,11 +17,24 @@ interface AvatarResultsProps {
   usedMock?: boolean;
 }
 
+function formatElapsed(s: number): string {
+  if (s < 60) return `${s}s`;
+  return `${Math.floor(s / 60)}m ${s % 60}s`;
+}
+
+function getStageMessage(s: number): string {
+  if (s < 6) return "Expanding prompt with GPT-4o…";
+  if (s < 25) return "Generating 4 images with Gemini…";
+  if (s < 50) return "Still generating — Gemini image models take a moment…";
+  if (s < 90) return "Uploading and finalizing…";
+  return "This is taking longer than usual, almost there…";
+}
+
 const LIKENESS_LABELS = ["Front", "3/4 Angle", "Side Profile", "Relaxed Pose"];
 const ENVIRONMENT_LABELS = ["Scene 1", "Scene 2", "Scene 3", "Scene 4"];
 
 export function AvatarResults({
-  generating, mode, generatedAvatar, error,
+  generating, elapsedSeconds, mode, generatedAvatar, error,
   pendingName, onPendingNameChange, onSave, saving, usedMock,
 }: AvatarResultsProps) {
   const labels = mode === "likeness_only" ? LIKENESS_LABELS : ENVIRONMENT_LABELS;
@@ -46,6 +60,31 @@ export function AvatarResults({
             <strong>No Gemini API key found</strong> — images above are placeholders.{" "}
             Go to <strong>Settings</strong> and add your Gemini API key to generate real images.
           </span>
+        </div>
+      )}
+
+      {/* Generation progress */}
+      {generating && (
+        <div className="rounded-lg border border-border bg-card px-4 py-3 space-y-2">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+              {getStageMessage(elapsedSeconds)}
+            </span>
+            <span
+              className="font-mono tabular-nums text-primary"
+              style={{ fontFamily: "'JetBrains Mono', monospace" }}
+            >
+              {formatElapsed(elapsedSeconds)}
+            </span>
+          </div>
+          <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
+            <div
+              className="h-full rounded-full bg-primary transition-all duration-1000"
+              style={{
+                width: `${Math.min(95, (elapsedSeconds / 90) * 100)}%`,
+              }}
+            />
+          </div>
         </div>
       )}
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect, useRef } from "react";
 import { AvatarControls } from "./avatar-controls";
 import { AvatarResults } from "./avatar-results";
 import { AvatarLibrary } from "./avatar-library";
@@ -21,11 +21,31 @@ export function AvatarStudio({ initialAvatars }: AvatarStudioProps) {
   const [usedMock, setUsedMock] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [generating, startGenerating] = useTransition();
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [pendingName, setPendingName] = useState("");
   const [saving, startSaving] = useTransition();
 
   const [avatars, setAvatars] = useState<Avatar[]>(initialAvatars);
+
+  // Start/stop the elapsed timer based on generating state
+  useEffect(() => {
+    if (generating) {
+      setElapsedSeconds(0);
+      timerRef.current = setInterval(() => {
+        setElapsedSeconds((s) => s + 1);
+      }, 1000);
+    } else {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    }
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [generating]);
 
   function handleGenerate() {
     if (!prompt.trim()) return;
@@ -84,6 +104,7 @@ export function AvatarStudio({ initialAvatars }: AvatarStudioProps) {
       <div className="flex-1 overflow-y-auto p-6 space-y-8">
         <AvatarResults
           generating={generating}
+          elapsedSeconds={elapsedSeconds}
           mode={mode}
           generatedAvatar={generatedAvatar}
           error={error}
