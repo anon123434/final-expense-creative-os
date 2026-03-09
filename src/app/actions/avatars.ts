@@ -99,6 +99,7 @@ export async function attachAvatarAction(
   try {
     await attachAvatarToCampaign(campaignId, avatarId);
     revalidatePath(`/campaigns/${campaignId}`);
+    revalidatePath(`/campaigns/${campaignId}/visual-plan`);
     return actionOk(null);
   } catch (err) {
     return actionFail(err, "Failed to attach avatar.");

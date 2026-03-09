@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Film, Save, AlertCircle, ChevronDown, CheckCircle2, Circle, ExpandIcon } from "lucide-react";
+import { Film, Save, AlertCircle, ChevronDown, CheckCircle2, Circle, UserCircle, RefreshCw } from "lucide-react";
 import { useRef, useEffect } from "react";
 import type { Script, VisualPlan } from "@/types";
+import type { Avatar } from "@/types/avatar";
 import type { SceneCard } from "@/types/scene";
 import { SceneCardItem } from "./scene-card";
 import { generateVisualPlanAction, saveVisualPlanAction } from "@/app/actions/visual-plan";
+import { AvatarPickerModal } from "@/components/avatars/avatar-picker-modal";
 import { cn } from "@/lib/utils";
 import { ProviderBadge } from "@/components/ui/provider-badge";
 
@@ -15,7 +17,7 @@ interface VisualPlanPanelProps {
   scripts: Script[];
   initialPlan: VisualPlan | null;
   initialScriptId: string | null;
-  avatarImageUrls?: string[] | null;
+  initialAvatar?: Avatar | null;
 }
 
 export function VisualPlanPanel({
@@ -23,8 +25,11 @@ export function VisualPlanPanel({
   scripts,
   initialPlan,
   initialScriptId,
-  avatarImageUrls,
+  initialAvatar,
 }: VisualPlanPanelProps) {
+  const [avatar, setAvatar] = useState<Avatar | null>(initialAvatar ?? null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const avatarImageUrls = avatar?.imageUrls ?? null;
   const [scriptId, setScriptId] = useState<string | null>(initialScriptId);
   const [plan, setPlan] = useState<VisualPlan | null>(initialPlan);
 
@@ -125,13 +130,29 @@ export function VisualPlanPanel({
             Source Script
           </label>
           <ProviderBadge provider="openai" />
-          {avatarImageUrls && avatarImageUrls.length > 0 && (
-            <div className="ml-auto flex items-center gap-1.5 rounded-full border border-border bg-muted/50 pl-0.5 pr-2 py-0.5">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={avatarImageUrls[0]} alt="Avatar" className="h-5 w-5 rounded-full object-cover" />
-              <span className="text-[10px] font-medium text-muted-foreground">Avatar reference · {avatarImageUrls.length} views</span>
-            </div>
-          )}
+          <div className="ml-auto">
+            {avatar ? (
+              <button
+                type="button"
+                onClick={() => setPickerOpen(true)}
+                className="flex items-center gap-1.5 rounded-full border border-border bg-muted/50 pl-0.5 pr-2 py-0.5 hover:border-primary/40 transition-colors"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={avatar.imageUrls[0]} alt="Avatar" className="h-5 w-5 rounded-full object-cover" />
+                <span className="text-[10px] font-medium text-muted-foreground">{avatar.name}</span>
+                <RefreshCw className="h-2.5 w-2.5 text-muted-foreground" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setPickerOpen(true)}
+                className="flex items-center gap-1.5 rounded-full border border-dashed border-border px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:border-primary/40 hover:text-foreground transition-colors"
+              >
+                <UserCircle className="h-3 w-3" />
+                Attach Avatar
+              </button>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex-1">
@@ -279,6 +300,15 @@ export function VisualPlanPanel({
           icon={Film}
           title="Select a script above"
           description="Choose which script to build the visual plan from."
+        />
+      )}
+
+      {pickerOpen && (
+        <AvatarPickerModal
+          campaignId={campaignId}
+          currentAvatarId={avatar?.id ?? null}
+          onClose={() => setPickerOpen(false)}
+          onAttached={(newAvatar) => setAvatar(newAvatar)}
         />
       )}
     </div>
