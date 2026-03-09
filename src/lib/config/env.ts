@@ -132,6 +132,16 @@ export function hasOpenAIKey(): boolean {
   return !!resolveOpenAIApiKey();
 }
 
+// --- Gemini ---
+
+export function resolveGeminiApiKey(): string | undefined {
+  return getCache()?.gemini ?? readServerVar("GEMINI_API_KEY");
+}
+
+export function hasGeminiKey(): boolean {
+  return !!resolveGeminiApiKey();
+}
+
 // ── Summary (useful for startup logging) ─────────────────────────────────
 
 export interface EnvStatus {

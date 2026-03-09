@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-type Provider = "claude" | "openai";
+type Provider = "claude" | "openai" | "gemini";
 
 const config: Record<Provider, { label: string; className: string }> = {
   claude: {
@@ -10,6 +10,10 @@ const config: Record<Provider, { label: string; className: string }> = {
   openai: {
     label: "OpenAI",
     className: "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800",
+  },
+  gemini: {
+    label: "Gemini",
+    className: "bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800",
   },
 };
 

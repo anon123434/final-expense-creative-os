@@ -14,7 +14,9 @@ import type {
   CampaignVersionRow,
   CreativeVariationRow,
   SettingsRow,
+  AvatarRow,
 } from "@/types/database";
+import type { Avatar } from "@/types/avatar";
 
 import type {
   Campaign,
@@ -47,6 +49,7 @@ export function toCampaign(row: CampaignRow): Campaign {
     ctaStyle: row.cta_style,
     notes: row.notes,
     personaImageUrl: row.persona_image_url,
+    avatarId: row.avatar_id ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -175,5 +178,20 @@ export function toSettings(row: SettingsRow): UserSettings {
     geminiApiKey: row.gemini_api_key,
     klingApiKey: row.kling_api_key,
     updatedAt: row.updated_at,
+  };
+}
+
+export function toAvatar(row: AvatarRow): Avatar {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    name: row.name,
+    prompt: row.prompt,
+    expandedPrompt: row.expanded_prompt,
+    mode: row.mode as Avatar["mode"],
+    aspectRatio: row.aspect_ratio as Avatar["aspectRatio"],
+    referenceImageUrl: row.reference_image_url,
+    imageUrls: Array.isArray(row.image_urls) ? row.image_urls : [],
+    createdAt: row.created_at,
   };
 }
