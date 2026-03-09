@@ -121,7 +121,7 @@ Return a JSON object: { "prompts": ["prompt1", "prompt2", "prompt3", "prompt4"] 
 
 interface GeminiPart {
   text?: string;
-  inline_data?: { mime_type: string; data: string };
+  inlineData?: { mimeType: string; data: string };
 }
 
 async function callGemini(
@@ -135,7 +135,7 @@ async function callGemini(
   if (referenceImageBase64) {
     const match = referenceImageBase64.match(/^data:([^;]+);base64,(.+)$/);
     if (match) {
-      parts.push({ inline_data: { mime_type: match[1], data: match[2] } });
+      parts.push({ inlineData: { mimeType: match[1], data: match[2] } });
     }
   }
 
@@ -147,7 +147,7 @@ async function callGemini(
   };
 
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent`,
     {
       method: "POST",
       headers: {
@@ -160,23 +160,26 @@ async function callGemini(
 
   if (!res.ok) {
     const text = await res.text();
+    console.error(`[Gemini] HTTP ${res.status}:`, text.slice(0, 500));
     throw new Error(`Gemini API error ${res.status}: ${text}`);
   }
 
   const json = await res.json() as {
     candidates?: Array<{
-      content?: { parts?: Array<{ inline_data?: { mime_type: string; data: string } }> };
+      content?: { parts?: Array<{ inlineData?: { mimeType: string; data: string }; text?: string }> };
+      finishReason?: string;
     }>;
+    error?: { code: number; message: string };
   };
 
-  const imagePart = json.candidates?.[0]?.content?.parts?.find((p) => p.inline_data);
-  if (!imagePart?.inline_data) {
+  const imagePart = json.candidates?.[0]?.content?.parts?.find((p) => p.inlineData);
+  if (!imagePart?.inlineData) {
     throw new Error("Gemini returned no image in response");
   }
 
   return {
-    base64: imagePart.inline_data.data,
-    mimeType: imagePart.inline_data.mime_type,
+    base64: imagePart.inlineData.data,
+    mimeType: imagePart.inlineData.mimeType,
   };
 }
 
