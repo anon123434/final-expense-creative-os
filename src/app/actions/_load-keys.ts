@@ -11,7 +11,7 @@ import { loadSettingsKeys } from "@/lib/config/settings-loader";
 export async function loadUserKeys(): Promise<void> {
   // Resolve user ID — try Supabase auth, but always fall back to the mock
   // user ID so local-file settings are loaded even without a DB connection.
-  let userId = "user-mock-001";
+  let userId = "00000000-0000-0000-0000-000000000001";
   try {
     const { createClient } = await import("@/lib/supabase/server");
     const supabase = await createClient();

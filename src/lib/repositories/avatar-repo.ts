@@ -13,8 +13,8 @@ export async function getAvatarsByUser(userId: string): Promise<Avatar[]> {
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
-    if (!error && data) return data.map(toAvatar);
-    console.warn("Supabase getAvatarsByUser failed, using mock:", error?.message);
+    if (!error && data && data.length > 0) return data.map(toAvatar);
+    if (error) console.warn("Supabase getAvatarsByUser failed, using mock:", error?.message);
   }
 
   return mockAvatarRows.filter((r) => r.user_id === userId).map(toAvatar);
@@ -30,7 +30,7 @@ export async function getAvatarById(id: string): Promise<Avatar | null> {
       .single();
 
     if (!error && data) return toAvatar(data);
-    console.warn("Supabase getAvatarById failed, using mock:", error?.message);
+    if (error) console.warn("Supabase getAvatarById failed, using mock:", error?.message);
   }
 
   const row = mockAvatarRows.find((r) => r.id === id);
@@ -69,8 +69,9 @@ export async function createAvatar(data: AvatarInsert): Promise<Avatar> {
 export async function updateAvatarImages(id: string, imageUrls: string[]): Promise<void> {
   if (hasSupabaseConfig()) {
     const supabase = await getSupabaseServerClient();
-    await supabase.from("avatars").update({ image_urls: imageUrls }).eq("id", id);
-    return;
+    const { error } = await supabase.from("avatars").update({ image_urls: imageUrls }).eq("id", id);
+    if (!error) return;
+    console.warn("Supabase updateAvatarImages failed, updating mock:", error.message);
   }
   const row = mockAvatarRows.find((r) => r.id === id);
   if (row) row.image_urls = imageUrls;

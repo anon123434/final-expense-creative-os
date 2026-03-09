@@ -13,9 +13,9 @@ async function getCurrentUserId(): Promise<string> {
     const { createClient } = await import("@/lib/supabase/server");
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    return user?.id ?? "user-mock-001";
+    return user?.id ?? "00000000-0000-0000-0000-000000000001";
   } catch {
-    return "user-mock-001";
+    return "00000000-0000-0000-0000-000000000001";
   }
 }
 

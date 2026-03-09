@@ -120,6 +120,12 @@ export function AvatarStudio({ initialAvatars }: AvatarStudioProps) {
             <AvatarLibrary
               avatars={avatars}
               onAvatarsChange={setAvatars}
+              onLoad={(avatar) => {
+                setGeneratedAvatar(avatar);
+                setUsedMock(false);
+                setError(null);
+                setPendingName(avatar.name);
+              }}
             />
           </div>
         )}

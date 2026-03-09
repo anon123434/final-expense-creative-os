@@ -1,16 +1,17 @@
 "use client";
 
 import { useTransition } from "react";
-import { Trash2 } from "lucide-react";
+import { Trash2, FolderOpen } from "lucide-react";
 import type { Avatar } from "@/types/avatar";
 import { deleteAvatarAction } from "@/app/actions/avatars";
 
 interface AvatarLibraryProps {
   avatars: Avatar[];
   onAvatarsChange: (avatars: Avatar[]) => void;
+  onLoad?: (avatar: Avatar) => void;
 }
 
-export function AvatarLibrary({ avatars, onAvatarsChange }: AvatarLibraryProps) {
+export function AvatarLibrary({ avatars, onAvatarsChange, onLoad }: AvatarLibraryProps) {
   const [deleting, startDelete] = useTransition();
 
   function handleDelete(avatarId: string) {
@@ -63,15 +64,29 @@ export function AvatarLibrary({ avatars, onAvatarsChange }: AvatarLibraryProps) 
                 })}
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => handleDelete(avatar.id)}
-              disabled={deleting}
-              className="absolute top-1.5 right-1.5 rounded p-1 opacity-0 group-hover:opacity-100 transition-opacity bg-black/60 text-white hover:bg-destructive"
-              aria-label="Delete avatar"
-            >
-              <Trash2 className="h-3 w-3" />
-            </button>
+            {/* Hover actions */}
+            <div className="absolute top-1.5 right-1.5 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              {onLoad && (
+                <button
+                  type="button"
+                  onClick={() => onLoad(avatar)}
+                  className="rounded p-1 bg-black/60 text-white hover:bg-primary"
+                  aria-label="Load avatar"
+                  title="Load into studio"
+                >
+                  <FolderOpen className="h-3 w-3" />
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => handleDelete(avatar.id)}
+                disabled={deleting}
+                className="rounded p-1 bg-black/60 text-white hover:bg-destructive"
+                aria-label="Delete avatar"
+              >
+                <Trash2 className="h-3 w-3" />
+              </button>
+            </div>
           </div>
         ))}
       </div>

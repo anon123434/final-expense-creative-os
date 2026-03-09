@@ -24,6 +24,8 @@ export interface GenerateVisualPlanInput {
   hook: string;
   body: string;
   cta: string;
+  /** Character description from the attached avatar (prompt or expandedPrompt). */
+  avatarDescription?: string | null;
 }
 
 export interface GeneratedVisualPlan {
@@ -191,18 +193,26 @@ IMPORTANT RULES:
 - A-roll scenes should note direct eye contact with camera.
 - B-roll scenes should feel observational and candid.
 - Build an emotional arc across the scene sequence.
-- No markdown fences, no commentary — only valid JSON.`;
+- No markdown fences, no commentary — only valid JSON.
+
+AVATAR LIKENESS RULE (when an avatar description is provided):
+- Every A-roll image_prompt MUST begin with the exact avatar description verbatim, followed by the scene details.
+- Every B-roll image_prompt that features a person who could be the spokesperson MUST also include the avatar description.
+- Maintain strict visual consistency of this person across all scenes they appear in.`;
 
 // ── Prompt builder ───────────────────────────────────────────────────────
 
 function buildVisualPlanPrompt(input: GenerateVisualPlanInput): string {
-  const { campaign, hook, body, cta } = input;
+  const { campaign, hook, body, cta, avatarDescription } = input;
+  const avatarSection = avatarDescription
+    ? `\nAvatar / Spokesperson likeness (use verbatim in every A-roll image_prompt):\n${avatarDescription}\n`
+    : "";
   return `Campaign:
 - Persona: ${campaign.personaId ?? "general"}
 - Emotional tone: ${campaign.emotionalTone ?? "warm and empathetic"}
 - Duration target: ${campaign.durationSeconds ?? 30}s
 - Phone: ${campaign.phoneNumber ?? "1-800-555-0100"}
-
+${avatarSection}
 Script:
 HOOK: ${hook}
 BODY: ${body}
@@ -278,7 +288,8 @@ function parseVisualPlanResponse(text: string): GeneratedVisualPlan {
 
 function mockVisualPlan(input: GenerateVisualPlanInput): GeneratedVisualPlan {
 
-  const { campaign, hook, body, cta } = input;
+  const { campaign, hook, body, cta, avatarDescription } = input;
+  const avatarPrefix = avatarDescription ? `${avatarDescription}. ` : "";
 
   const bodySentences = splitSentences(body);
 
@@ -332,7 +343,7 @@ function mockVisualPlan(input: GenerateVisualPlanInput): GeneratedVisualPlan {
     emotion: hookTemplate.emotion,
     cameraStyle: hookTemplate.cameraStyle,
     imagePrompt: buildImagePrompt(
-      `${hookTemplate.setting}. ${hookTemplate.imageSuffix}`,
+      `${hookTemplate.sceneType === "A-roll" ? avatarPrefix : ""}${hookTemplate.setting}. ${hookTemplate.imageSuffix}`,
       hookTemplate.sceneType === "A-roll"
     ),
     klingPrompt: buildKlingPrompt(hookTemplate.klingSuffix),
@@ -350,7 +361,7 @@ function mockVisualPlan(input: GenerateVisualPlanInput): GeneratedVisualPlan {
       emotion: tmpl.emotion,
       cameraStyle: tmpl.cameraStyle,
       imagePrompt: buildImagePrompt(
-        `${tmpl.setting}. ${tmpl.imageSuffix}`,
+        `${tmpl.sceneType === "A-roll" ? avatarPrefix : ""}${tmpl.setting}. ${tmpl.imageSuffix}`,
         tmpl.sceneType === "A-roll"
       ),
       klingPrompt: buildKlingPrompt(tmpl.klingSuffix),
@@ -368,7 +379,7 @@ function mockVisualPlan(input: GenerateVisualPlanInput): GeneratedVisualPlan {
     emotion: CTA_TEMPLATE.emotion,
     cameraStyle: CTA_TEMPLATE.cameraStyle,
     imagePrompt: buildImagePrompt(
-      `${CTA_TEMPLATE.setting}. ${CTA_TEMPLATE.imageSuffix}`,
+      `${avatarPrefix}${CTA_TEMPLATE.setting}. ${CTA_TEMPLATE.imageSuffix}`,
       true
     ),
     klingPrompt: buildKlingPrompt(CTA_TEMPLATE.klingSuffix),

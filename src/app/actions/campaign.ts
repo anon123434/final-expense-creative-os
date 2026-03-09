@@ -15,7 +15,7 @@ export async function createCampaignAction(
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    const userId = user?.id ?? "user-mock-001";
+    const userId = user?.id ?? "00000000-0000-0000-0000-000000000001";
 
     const campaign = await createCampaign(userId, {
       title: values.title,
@@ -64,7 +64,7 @@ export async function duplicateCampaignAction(
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    const userId = user?.id ?? "user-mock-001";
+    const userId = user?.id ?? "00000000-0000-0000-0000-000000000001";
 
     const result = await duplicateCampaign(campaignId, userId);
     if (!result) return { success: false, error: "Campaign not found or access denied." };

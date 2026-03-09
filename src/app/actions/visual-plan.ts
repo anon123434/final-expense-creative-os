@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getCampaignById } from "@/lib/repositories/campaign-repo";
 import { getScriptsByCampaign } from "@/lib/repositories/script-repo";
+import { getAvatarById } from "@/lib/repositories/avatar-repo";
 import { upsertVisualPlan } from "@/lib/repositories/visual-plan-repo";
 import { generateVisualPlan } from "@/lib/services/visual-plan-generator";
 import { generateSingleImage, uploadGeneratedImage } from "@/lib/services/gemini-image";
@@ -35,11 +36,15 @@ export async function generateVisualPlanAction(
       return { success: false, error: "Script has no content to build a visual plan from." };
     }
 
+    const avatar = campaign.avatarId ? await getAvatarById(campaign.avatarId) : null;
+    const avatarDescription = avatar?.expandedPrompt ?? avatar?.prompt ?? null;
+
     const generated = await generateVisualPlan({
       campaign,
       hook: script.hook ?? "",
       body: script.body ?? "",
       cta: script.cta ?? "",
+      avatarDescription,
     });
 
     const plan = await upsertVisualPlan({
