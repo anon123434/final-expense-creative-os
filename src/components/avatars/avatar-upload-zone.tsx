@@ -21,7 +21,20 @@ export function AvatarUploadZone({ value, onChange, disabled }: AvatarUploadZone
       return;
     }
     const reader = new FileReader();
-    reader.onload = (e) => onChange(e.target?.result as string);
+    reader.onload = (e) => {
+      const original = e.target?.result as string;
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 1024;
+        const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+        onChange(canvas.toDataURL("image/jpeg", 0.85));
+      };
+      img.src = original;
+    };
     reader.readAsDataURL(file);
   }
 
