@@ -8,15 +8,16 @@ import { getVisualPlansByCampaign } from "@/lib/repositories/visual-plan-repo";
 import { getPromptsByCampaign } from "@/lib/repositories/prompt-repo";
 import { getVersionsByCampaign } from "@/lib/repositories/version-repo";
 import { getVariationsByCampaign } from "@/lib/repositories/variation-repo";
+import { getTriggerByKey } from "@/lib/seed/triggers";
 import { getPersonaByKey } from "@/lib/seed/personas";
 import { getArchetypeByKey } from "@/lib/seed/archetypes";
 import { getToneByKey } from "@/lib/seed/tones";
-import { getTriggerByKey } from "@/lib/seed/triggers";
 import { AvatarHero } from "@/components/campaign/overview/avatar-hero";
 import { PrintOverviewButton } from "@/components/campaign/overview/print-button";
 import type { PrintData } from "@/components/campaign/overview/print-button";
 import { PipelineGrid } from "@/components/campaign/overview/pipeline-grid";
 import type { PipelineStage } from "@/components/campaign/overview/pipeline-grid";
+import { CampaignBriefEditor } from "@/components/campaign/overview/brief-editor";
 import { Check, X } from "lucide-react";
 
 interface OverviewPageProps {
@@ -199,20 +200,6 @@ export default async function OverviewTab({ params }: OverviewPageProps) {
     triggers: includedTriggerItems,
   };
 
-  const hasBriefContent =
-    persona ||
-    archetype ||
-    tone ||
-    campaign.durationSeconds ||
-    campaign.offerName ||
-    campaign.phoneNumber ||
-    campaign.deadlineText ||
-    campaign.benefitAmount ||
-    campaign.affordabilityText ||
-    campaign.ctaStyle ||
-    campaign.notes ||
-    triggers.length > 0;
-
   return (
     <div className="space-y-6">
       <div className="flex justify-end">
@@ -228,61 +215,24 @@ export default async function OverviewTab({ params }: OverviewPageProps) {
 
         <PipelineGrid stages={stages} />
 
-        {hasBriefContent && (
-          <div className="pt-6">
-            <div className="mb-4 flex items-center gap-3">
-              <div className="h-px flex-1 bg-white/5" />
-              <p className="font-mono-data text-[9px] uppercase tracking-widest text-muted-foreground/60">
-                Campaign Brief
-              </p>
-              <div className="h-px flex-1 bg-white/5" />
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {(persona || archetype || tone || campaign.durationSeconds || campaign.offerName) && (
-                <BriefCard label="Creative">
-                  {campaign.offerName && <BriefRow label="Offer" value={campaign.offerName} />}
-                  {persona && <BriefRow label="Persona" value={persona.label} />}
-                  {archetype && <BriefRow label="Archetype" value={archetype.label} />}
-                  {tone && <BriefRow label="Tone" value={tone.label} />}
-                  {campaign.durationSeconds && (
-                    <BriefRow label="Duration" value={`${campaign.durationSeconds}s`} />
-                  )}
-                </BriefCard>
-              )}
-              {(campaign.phoneNumber || campaign.deadlineText || campaign.benefitAmount || campaign.affordabilityText || campaign.ctaStyle) && (
-                <BriefCard label="Production">
-                  {campaign.phoneNumber && <BriefRow label="Phone" value={campaign.phoneNumber} />}
-                  {campaign.deadlineText && <BriefRow label="Deadline" value={campaign.deadlineText} />}
-                  {campaign.benefitAmount && <BriefRow label="Benefit" value={campaign.benefitAmount} />}
-                  {campaign.affordabilityText && <BriefRow label="Affordability" value={campaign.affordabilityText} />}
-                  {campaign.ctaStyle && <BriefRow label="CTA" value={campaign.ctaStyle} />}
-                </BriefCard>
-              )}
-              {triggers.length > 0 && (
-                <div className="rounded-xl border border-white/6 bg-[#0d0d0d] px-4 py-3 sm:col-span-2">
-                  <p className="mb-2.5 font-mono-data text-[9px] uppercase tracking-widest text-muted-foreground/60">Triggers</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {includedTriggers.map((label) => (
-                      <span key={label} className="inline-flex items-center gap-1 rounded-full border border-[#00E676]/25 bg-[#00E676]/8 px-2 py-0.5 font-mono-data text-[10px] text-[#00E676]">
-                        <Check className="h-2.5 w-2.5" strokeWidth={2.5} />
-                        {label}
-                      </span>
-                    ))}
-                    {excludedTriggers.map((label) => (
-                      <span key={label} className="inline-flex items-center gap-1 rounded-full border border-white/8 bg-white/4 px-2 py-0.5 font-mono-data text-[10px] text-muted-foreground/40 line-through">
-                        <X className="h-2.5 w-2.5" strokeWidth={2} />
-                        {label}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {campaign.notes && (
-                <div className="rounded-xl border border-white/6 bg-[#0d0d0d] px-4 py-3 sm:col-span-2">
-                  <p className="mb-2 font-mono-data text-[9px] uppercase tracking-widest text-muted-foreground/60">Notes</p>
-                  <p className="text-sm leading-relaxed text-muted-foreground">{campaign.notes}</p>
-                </div>
-              )}
+        <CampaignBriefEditor campaign={campaign} />
+
+        {triggers.length > 0 && (
+          <div className="rounded-xl border border-white/6 bg-[#0d0d0d] px-4 py-3">
+            <p className="mb-2.5 font-mono-data text-[9px] uppercase tracking-widest text-muted-foreground/60">Triggers</p>
+            <div className="flex flex-wrap gap-1.5">
+              {includedTriggers.map((label) => (
+                <span key={label} className="inline-flex items-center gap-1 rounded-full border border-[#00E676]/25 bg-[#00E676]/8 px-2 py-0.5 font-mono-data text-[10px] text-[#00E676]">
+                  <Check className="h-2.5 w-2.5" strokeWidth={2.5} />
+                  {label}
+                </span>
+              ))}
+              {excludedTriggers.map((label) => (
+                <span key={label} className="inline-flex items-center gap-1 rounded-full border border-white/8 bg-white/4 px-2 py-0.5 font-mono-data text-[10px] text-muted-foreground/40 line-through">
+                  <X className="h-2.5 w-2.5" strokeWidth={2} />
+                  {label}
+                </span>
+              ))}
             </div>
           </div>
         )}
@@ -290,31 +240,4 @@ export default async function OverviewTab({ params }: OverviewPageProps) {
   );
 }
 
-function BriefCard({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-xl border border-white/6 bg-[#0d0d0d] px-4 py-3">
-      <p className="mb-2.5 font-mono-data text-[9px] uppercase tracking-widest text-muted-foreground/60">
-        {label}
-      </p>
-      <div className="space-y-1.5">{children}</div>
-    </div>
-  );
-}
-
-function BriefRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-baseline gap-3">
-      <span className="w-20 shrink-0 font-mono-data text-[9px] uppercase tracking-wider text-muted-foreground/50">
-        {label}
-      </span>
-      <span className="text-[13px] text-foreground/75">{value}</span>
-    </div>
-  );
-}
 

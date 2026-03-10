@@ -102,6 +102,56 @@ export async function createCampaign(userId: string, data: CampaignFormData): Pr
   return toCampaign(mockRow);
 }
 
+export async function updateCampaign(id: string, data: Partial<CampaignFormData>): Promise<Campaign> {
+  if (hasSupabaseConfig()) {
+    const supabase = await getSupabaseServerClient();
+    const { data: row, error } = await supabase
+      .from("campaigns")
+      .update({
+        ...(data.title !== undefined && { title: data.title }),
+        ...(data.offerName !== undefined && { offer_name: data.offerName || null }),
+        ...(data.personaId !== undefined && { persona_id: data.personaId || null }),
+        ...(data.archetypeId !== undefined && { archetype_id: data.archetypeId || null }),
+        ...(data.emotionalTone !== undefined && { emotional_tone: data.emotionalTone || null }),
+        ...(data.durationSeconds !== undefined && { duration_seconds: data.durationSeconds || null }),
+        ...(data.phoneNumber !== undefined && { phone_number: data.phoneNumber || null }),
+        ...(data.phoneNumberPhonetic !== undefined && { phone_number_phonetic: data.phoneNumberPhonetic || null }),
+        ...(data.deadlineText !== undefined && { deadline_text: data.deadlineText || null }),
+        ...(data.benefitAmount !== undefined && { benefit_amount: data.benefitAmount || null }),
+        ...(data.affordabilityText !== undefined && { affordability_text: data.affordabilityText || null }),
+        ...(data.ctaStyle !== undefined && { cta_style: data.ctaStyle || null }),
+        ...(data.notes !== undefined && { notes: data.notes || null }),
+      })
+      .eq("id", id)
+      .select()
+      .single();
+    if (!error && row) return toCampaign(row as CampaignRow);
+    throw new Error(error?.message ?? "Failed to update campaign.");
+  }
+  // Mock fallback
+  const idx = mockCampaignRows.findIndex((r) => r.id === id);
+  if (idx === -1) throw new Error("Campaign not found.");
+  const existing = mockCampaignRows[idx];
+  mockCampaignRows[idx] = {
+    ...existing,
+    ...(data.title !== undefined && { title: data.title }),
+    ...(data.offerName !== undefined && { offer_name: data.offerName || null }),
+    ...(data.personaId !== undefined && { persona_id: data.personaId || null }),
+    ...(data.archetypeId !== undefined && { archetype_id: data.archetypeId || null }),
+    ...(data.emotionalTone !== undefined && { emotional_tone: data.emotionalTone || null }),
+    ...(data.durationSeconds !== undefined && { duration_seconds: data.durationSeconds || null }),
+    ...(data.phoneNumber !== undefined && { phone_number: data.phoneNumber || null }),
+    ...(data.phoneNumberPhonetic !== undefined && { phone_number_phonetic: data.phoneNumberPhonetic || null }),
+    ...(data.deadlineText !== undefined && { deadline_text: data.deadlineText || null }),
+    ...(data.benefitAmount !== undefined && { benefit_amount: data.benefitAmount || null }),
+    ...(data.affordabilityText !== undefined && { affordability_text: data.affordabilityText || null }),
+    ...(data.ctaStyle !== undefined && { cta_style: data.ctaStyle || null }),
+    ...(data.notes !== undefined && { notes: data.notes || null }),
+    updated_at: new Date().toISOString(),
+  };
+  return toCampaign(mockCampaignRows[idx]);
+}
+
 export async function duplicateCampaign(id: string, userId: string): Promise<Campaign | null> {
   const source = await getCampaignById(id);
   if (!source || source.userId !== userId) return null;

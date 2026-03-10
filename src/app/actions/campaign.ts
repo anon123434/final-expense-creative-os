@@ -2,9 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { duplicateCampaign, createCampaign, saveCampaignTriggers } from "@/lib/repositories/campaign-repo";
+import { duplicateCampaign, createCampaign, updateCampaign, saveCampaignTriggers } from "@/lib/repositories/campaign-repo";
 import type { FailResult } from "@/lib/result";
-import { actionFail } from "@/lib/result";
+import { actionFail, actionOk, type ActionResult } from "@/lib/result";
+import type { Campaign, CampaignFormData } from "@/types";
 import type { CampaignFormValues } from "@/lib/validation/campaign-schema";
 
 // ── Create ─────────────────────────────────────────────────────────────────
@@ -53,6 +54,23 @@ export async function createCampaignAction(
   } catch (err) {
     console.error("createCampaignAction:", err);
     return actionFail(err, "Failed to create campaign. Please try again.");
+  }
+}
+
+// ── Update ─────────────────────────────────────────────────────────────────
+
+export async function updateCampaignAction(
+  campaignId: string,
+  data: Partial<CampaignFormData>
+): Promise<ActionResult<{ campaign: Campaign }>> {
+  try {
+    const campaign = await updateCampaign(campaignId, data);
+    revalidatePath(`/campaigns/${campaignId}`);
+    revalidatePath(`/dashboard`);
+    return actionOk({ campaign });
+  } catch (err) {
+    console.error("updateCampaignAction:", err);
+    return actionFail(err, "Failed to update campaign.");
   }
 }
 
