@@ -81,50 +81,50 @@ interface SceneTemplate {
 const HOOK_TEMPLATES: SceneTemplate[] = [
   {
     sceneType: "B-roll",
-    setting: "modest living room, warm evening",
-    shotIdea: "elderly woman sitting alone in armchair, looking at family photo",
-    emotion: "quiet grief, wistful memory",
-    cameraStyle: "50mm documentary realism, slight push-in",
+    setting: "funeral home corridor, overcast daylight through tall windows",
+    shotIdea: "widow walking calmly through a crowd of mourners — others whisper and glance at her, long lens compression",
+    emotion: "composed dignity amid shocked disbelief from others",
+    cameraStyle: "85mm telephoto, observational, crowd slightly soft-focus behind her",
     imageSuffix:
-      "elderly woman in armchair holding family photograph, warm tungsten lamp behind her, dust particles in air, shallow depth of field",
+      "widow in dark clothing walking through a blurred crowd of mourners, long lens compression, others turning to look and whisper, muted natural light",
     klingSuffix:
-      "Her gaze drifts slowly from the photograph to the empty chair beside her. A quiet melancholic sigh. Very slow push-in.",
+      "[Spielberg] Slow push-in from behind as the widow walks forward. Mourners in the soft background turn to each other and whisper. She doesn't look back. Sound: low crowd murmur, distant organ note.",
   },
   {
     sceneType: "B-roll",
-    setting: "kitchen table, morning light",
-    shotIdea: "hands wrapped around a coffee mug, staring into the distance",
-    emotion: "contemplative worry",
-    cameraStyle: "50mm close-up, shallow depth of field",
+    setting: "kitchen table, morning light streaming through blinds",
+    shotIdea: "close-up of hands slowly opening a large envelope — edge of a check visible inside",
+    emotion: "disbelief transitioning to quiet shock",
+    cameraStyle: "50mm extreme close-up, shallow depth of field on hands and envelope edge",
     imageSuffix:
-      "close-up of older hands wrapped around ceramic coffee mug, soft morning window light, shallow depth of field",
+      "close-up of weathered hands carefully opening a white envelope, edge of a check visible, warm morning window light, shallow depth of field",
     klingSuffix:
-      "Hands slowly rotate the coffee mug. Steam rises and curls gently. The person stares into middle distance. No camera movement.",
+      "[Fincher] Static close-up. Hands slowly pull the envelope open. One finger slides across the paper edge. The check slides into view — camera holds. Sound: paper against paper, then silence.",
   },
 ];
 
 const BODY_TEMPLATES: SceneTemplate[] = [
   {
     sceneType: "B-roll",
-    setting: "family kitchen, warm afternoon",
-    shotIdea: "stack of unopened envelopes and bills on kitchen table",
-    emotion: "financial dread, overwhelm",
-    cameraStyle: "50mm medium shot, slow rack focus to bills",
+    setting: "funeral home director's office, late afternoon",
+    shotIdea: "funeral director slides a bill across a dark desk — close-up on the total amount",
+    emotion: "financial dread, shock",
+    cameraStyle: "50mm close-up, slow rack focus from director's face to the bill total",
     imageSuffix:
-      "stack of unopened bills and envelopes on a worn kitchen table, afternoon window light, slightly desaturated",
+      "close-up of a funeral home invoice being slid across a dark wooden desk, overhead lamp, total line visible, slightly desaturated",
     klingSuffix:
-      "Camera slowly rack-focuses from a blurred family photo on the wall to the stack of bills in the foreground.",
+      "[Fincher] Cold static shot. The director's hand slides the paper forward. A finger taps the total. The subject's hand enters frame and picks it up slowly. Sound: paper on wood, clock ticking.",
   },
   {
     sceneType: "B-roll",
     setting: "funeral home exterior, overcast day",
-    shotIdea: "family members walking into funeral home, solemn expressions",
-    emotion: "grief, heaviness",
-    cameraStyle: "50mm observational, slight telephoto compression",
+    shotIdea: "family in dark clothing entering — one person stops at the door, visibly composing themselves",
+    emotion: "grief, heaviness, dread",
+    cameraStyle: "85mm telephoto compression, observational, long shot",
     imageSuffix:
-      "family in dark clothing walking into a small funeral home, overcast natural light, muted color palette",
+      "family in dark clothing approaching a small funeral home entrance, overcast natural light, one figure pausing at the door with a hand on the frame",
     klingSuffix:
-      "The family walks slowly toward the entrance. One person pauses at the door, visibly composing themselves.",
+      "[Villeneuve] Long static wide. Family moves slowly toward the entrance in near-silence. One figure stops at the door — hand on the frame, a breath, then steps inside. Sound: distant traffic, a single muffled sob.",
   },
   {
     sceneType: "A-roll",
@@ -135,18 +135,18 @@ const BODY_TEMPLATES: SceneTemplate[] = [
     imageSuffix:
       "friendly spokesperson seated in a comfortable lived-in living room, eye-level framing, warm practical lamp light, natural direct eye contact",
     klingSuffix:
-      "The spokesperson speaks earnestly and directly to camera. Subtle natural breathing movement. Occasional small hand gesture. No camera movement.",
+      "[Spielberg] Static medium close-up. Spokesperson speaks directly to camera — small natural head movement, one deliberate hand gesture. Expression earnest and warm. Sound: room tone, natural breathing.",
   },
   {
     sceneType: "B-roll",
-    setting: "backyard, golden hour",
-    shotIdea: "grandparent playing with grandchildren on grass",
-    emotion: "joy, love, protection",
-    cameraStyle: "50mm candid, golden hour backlight",
+    setting: "kitchen table, natural window light",
+    shotIdea: "stack of unopened bills and envelopes — rack focus from blurred family photo to sharp bills",
+    emotion: "financial overwhelm, quiet dread",
+    cameraStyle: "50mm medium shot, slow rack focus",
     imageSuffix:
-      "grandparent on backyard grass playing with young grandchildren, golden hour backlight, candid and unposed",
+      "stack of unopened bills and envelopes on a worn kitchen table, blurred family photo visible in background, afternoon window light, slightly desaturated",
     klingSuffix:
-      "The grandparent gently tosses a ball to a grandchild. A small natural laugh. Golden hour backlight. No sudden movement.",
+      "[Fincher] Camera holds still. Rack focus pulls from the family photograph on the wall to the stack of bills in the foreground — the sharpness of the bills hitting like a statement. Sound: paper rustling, near-silence.",
   },
   {
     sceneType: "B-roll",
@@ -155,7 +155,7 @@ const BODY_TEMPLATES: SceneTemplate[] = [
     emotion: "relief, hope, resolution",
     cameraStyle: "50mm medium shot, slow push-in on face",
     imageSuffix: `Medium close-up of person holding a phone to their ear, listening attentively. ${PHONE_LISTENING_BEAT.imageDirection}`,
-    klingSuffix: PHONE_LISTENING_BEAT.klingMotion,
+    klingSuffix: `[Spielberg] ${PHONE_LISTENING_BEAT.klingMotion} Sound: faint voice from phone receiver, a slow exhale.`,
   },
   {
     sceneType: "B-roll",
@@ -164,7 +164,7 @@ const BODY_TEMPLATES: SceneTemplate[] = [
     emotion: "quiet disbelief transitioning to acceptance, relief",
     cameraStyle: "50mm medium shot, 3/4 angle, very slow push-in toward document",
     imageSuffix: `${CHECK_HOLDING_BEAT.imageDirection}`,
-    klingSuffix: CHECK_HOLDING_BEAT.klingMotion,
+    klingSuffix: `[Spielberg] ${CHECK_HOLDING_BEAT.klingMotion} Sound: single quiet exhale against near-silence.`,
   },
   {
     sceneType: "B-roll",
@@ -173,7 +173,7 @@ const BODY_TEMPLATES: SceneTemplate[] = [
     emotion: "focused reading transitioning to quiet acceptance",
     cameraStyle: "50mm medium shot, back shoulder view, very slow push-in toward document",
     imageSuffix: `${APPROVAL_LETTER_BEAT.imageDirection}`,
-    klingSuffix: APPROVAL_LETTER_BEAT.klingMotion,
+    klingSuffix: `[Villeneuve] ${APPROVAL_LETTER_BEAT.klingMotion} Sound: paper shifting, then quiet.`,
   },
 ];
 
@@ -413,12 +413,12 @@ function mockVisualPlan(input: GenerateVisualPlanInput): GeneratedVisualPlan {
 
   // ── B-roll ideas ───────────────────────────────────────────────────────
   const bRollIdeas = [
-    `Elderly hands holding family photograph — tight 50mm close-up, tungsten light`,
-    `Stack of bills on kitchen table — rack focus from family photo to bills`,
-    `Grandparent with grandchildren — golden hour backyard, candid movement`,
-    `Couple reviewing insurance paperwork with relief — warm kitchen light`,
-    `Funeral home exterior — overcast, observational, muted palette`,
-    `Empty chair in living room — symbolic, minimal, poetic`,
+    `Close-up of hands slowly opening an envelope — edge of a $25,000 check becoming visible, shallow depth of field`,
+    `Funeral director sliding a bill across a dark desk — rack focus to the total amount, cold and precise`,
+    `Widow walking calmly through whispering mourners — 85mm long lens, crowd turning to look, she doesn't stop`,
+    `Stack of unopened bills on kitchen table — slow rack focus from blurred family photo to sharp bill totals`,
+    `Family entering funeral home — one figure stops at the door, hand on the frame, a breath before stepping in`,
+    `Close-up of a face reading a piece of paper — expression shifts from tension to quiet disbelief to relief`,
   ];
 
   // ── Scene breakdown ────────────────────────────────────────────────────
