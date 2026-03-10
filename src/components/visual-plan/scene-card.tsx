@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ChevronDown, ChevronUp, Copy, Check, Clapperboard, Camera, Sparkles, Download, UserCircle, FileImage, Mic, Video } from "lucide-react";
 import type { SceneCard } from "@/types/scene";
 import { cn } from "@/lib/utils";
@@ -28,6 +28,11 @@ export function SceneCardItem({ scene, onChange, campaignId, avatarId }: SceneCa
   const [videoError, setVideoError] = useState<string | null>(null);
   const [videoElapsed, setVideoElapsed] = useState(0);
   const [pollingVideoId, setPollingVideoId] = useState<string | null>(scene.videoJobId ?? null);
+
+  const sceneRef = useRef(scene);
+  const onChangeRef = useRef(onChange);
+  useEffect(() => { sceneRef.current = scene; }, [scene]);
+  useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
 
   function update(field: EditableField, value: string) {
     onChange({ ...scene, [field]: value });
@@ -130,6 +135,7 @@ export function SceneCardItem({ scene, onChange, campaignId, avatarId }: SceneCa
       setAudioBase64(result.split(",")[1]);
     };
     reader.readAsDataURL(file);
+    e.target.value = "";
   }
 
   async function handleGenerateVideo() {
@@ -139,26 +145,26 @@ export function SceneCardItem({ scene, onChange, campaignId, avatarId }: SceneCa
     setVideoElapsed(0);
     const start = Date.now();
     const timer = setInterval(() => setVideoElapsed(Math.floor((Date.now() - start) / 1000)), 1000);
-
-    const result = await generateTalkingVideoAction(
-      campaignId,
-      scene.sceneNumber,
-      scene.generatedImageUrl,
-      audioBase64,
-      audioFile.type || "audio/mpeg"
-    );
-    clearInterval(timer);
-
-    if (!result.success) {
-      setGeneratingVideo(false);
-      setVideoError(result.error);
-      return;
+    try {
+      const result = await generateTalkingVideoAction(
+        campaignId,
+        scene.sceneNumber,
+        scene.generatedImageUrl,
+        audioBase64,
+        audioFile.type || "audio/mpeg"
+      );
+      if (!result.success) {
+        setGeneratingVideo(false);
+        setVideoError(result.error);
+        return;
+      }
+      // Store jobId on scene and start polling
+      onChange({ ...scene, videoJobId: result.data.videoId });
+      setPollingVideoId(result.data.videoId);
+      // generatingVideo stays true; polling useEffect will clear it when done
+    } finally {
+      clearInterval(timer);
     }
-
-    // Store jobId on scene and start polling
-    onChange({ ...scene, videoJobId: result.data.videoId });
-    setPollingVideoId(result.data.videoId);
-    // generatingVideo stays true; polling useEffect will clear it when done
   }
 
   async function handleVideoDownload() {
@@ -180,8 +186,13 @@ export function SceneCardItem({ scene, onChange, campaignId, avatarId }: SceneCa
   }
 
   useEffect(() => {
-    if (!pollingVideoId || scene.generatedVideoUrl) return;
+    if (!pollingVideoId || sceneRef.current.generatedVideoUrl) return;
     let cancelled = false;
+
+    const elapsedInterval = setInterval(
+      () => setVideoElapsed((v) => v + 1),
+      1000
+    );
 
     const poll = async () => {
       while (!cancelled) {
@@ -191,18 +202,21 @@ export function SceneCardItem({ scene, onChange, campaignId, avatarId }: SceneCa
         if (!result.success) {
           setVideoError(result.error);
           setGeneratingVideo(false);
+          setVideoElapsed(0);
           break;
         }
         const { status, videoUrl } = result.data;
         if (status === "completed" && videoUrl) {
-          onChange({ ...scene, generatedVideoUrl: videoUrl, videoJobId: pollingVideoId });
+          onChangeRef.current({ ...sceneRef.current, generatedVideoUrl: videoUrl, videoJobId: pollingVideoId });
           setGeneratingVideo(false);
           setPollingVideoId(null);
+          setVideoElapsed(0);
           break;
         }
         if (status === "failed") {
           setVideoError("Video generation failed on HeyGen.");
           setGeneratingVideo(false);
+          setVideoElapsed(0);
           break;
         }
         // pending/processing — loop continues
@@ -211,7 +225,10 @@ export function SceneCardItem({ scene, onChange, campaignId, avatarId }: SceneCa
 
     setGeneratingVideo(true);
     void poll();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      clearInterval(elapsedInterval);
+    };
   }, [pollingVideoId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
@@ -543,7 +560,7 @@ export function SceneCardItem({ scene, onChange, campaignId, avatarId }: SceneCa
                   <button
                     type="button"
                     onClick={handleGenerateVideo}
-                    disabled={!audioBase64 || generatingVideo}
+                    disabled={!audioBase64 || generatingVideo || pollingVideoId !== null}
                     className={cn(
                       "flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed py-3 text-xs font-medium transition-colors",
                       "border-rose-200 text-rose-600 hover:bg-rose-50/50 hover:border-rose-300",
