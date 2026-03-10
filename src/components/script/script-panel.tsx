@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef } from "react";
 import { Sparkles, Save, AlertCircle, Mic, Copy, Check, Cpu, Bot, Lightbulb, ChevronDown, ChevronUp } from "lucide-react";
 import type { AdConcept, Script } from "@/types";
 import type { Campaign } from "@/types";
@@ -54,6 +54,9 @@ export function ScriptPanel({
   const [hookVariants, setHookVariants] = useState<HookVariant[]>([]);
   const [hookLabOpen, setHookLabOpen] = useState(false);
   const [hookLabError, setHookLabError] = useState<string | null>(null);
+  const [usedHookIndex, setUsedHookIndex] = useState<number | null>(null);
+  const [scriptFlash, setScriptFlash] = useState(false);
+  const scriptTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   const [generating, startGenerating] = useTransition();
   const [transforming, startTransforming] = useTransition();
@@ -148,11 +151,18 @@ export function ScriptPanel({
     });
   }
 
-  function handleUseHook(newHook: string) {
+  function handleUseHook(newHook: string, index: number) {
     const { body, cta } = parseFullScript(fullScript);
     setFullScript([newHook, body, cta].filter(Boolean).join("\n\n"));
     setIsDirty(true);
     setSaveStatus("idle");
+    // Button feedback
+    setUsedHookIndex(index);
+    setTimeout(() => setUsedHookIndex(null), 1500);
+    // Scroll to textarea and flash it
+    scriptTextareaRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setScriptFlash(true);
+    setTimeout(() => setScriptFlash(false), 1000);
   }
 
   return (
@@ -252,6 +262,7 @@ export function ScriptPanel({
               Ad Script
             </label>
             <textarea
+              ref={scriptTextareaRef}
               value={fullScript}
               onChange={(e) => { setFullScript(e.target.value); setIsDirty(true); setSaveStatus("idle"); }}
               disabled={loading}
@@ -259,7 +270,9 @@ export function ScriptPanel({
               className={cn(
                 "w-full resize-y rounded-md border bg-background px-3 py-2 text-sm leading-relaxed",
                 "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
-                "disabled:cursor-not-allowed disabled:opacity-50"
+                "disabled:cursor-not-allowed disabled:opacity-50",
+                "transition-[box-shadow] duration-300",
+                scriptFlash && "ring-2 ring-[#00E676]/60 border-[#00E676]/40"
               )}
             />
           </section>
@@ -363,13 +376,15 @@ export function ScriptPanel({
                           </div>
                           <button
                             type="button"
-                            onClick={() => handleUseHook(v.hook)}
+                            onClick={() => handleUseHook(v.hook, i)}
                             className={cn(
-                              "shrink-0 inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium whitespace-nowrap",
-                              "bg-primary text-primary-foreground hover:bg-primary/90"
+                              "shrink-0 inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium whitespace-nowrap transition-colors",
+                              usedHookIndex === i
+                                ? "bg-[#00E676] text-black"
+                                : "bg-primary text-primary-foreground hover:bg-primary/90"
                             )}
                           >
-                            Use →
+                            {usedHookIndex === i ? <><Check className="h-3 w-3" /> Applied</> : "Use →"}
                           </button>
                         </div>
                         {v.visualMoments.length > 0 && (
