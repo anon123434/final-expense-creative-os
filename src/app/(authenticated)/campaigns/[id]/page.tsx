@@ -166,11 +166,8 @@ export default async function OverviewTab({ params }: OverviewPageProps) {
     <div className="space-y-6">
       {/* Hero avatar node */}
       <AvatarHero
-        avatar={
-          avatar
-            ? { name: avatar.name, imageUrl: avatar.imageUrls[0] ?? null }
-            : null
-        }
+        avatar={avatar}
+        campaignId={id}
         completedCount={completedCount}
         totalStages={stages.length}
       />

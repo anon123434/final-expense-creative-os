@@ -1,22 +1,29 @@
 "use client";
 
-import { User } from "lucide-react";
+import { User, Plus } from "lucide-react";
 import { useState, useEffect } from "react";
+import type { Avatar } from "@/types/avatar";
+import { AvatarPickerModal } from "@/components/avatars/avatar-picker-modal";
 
 interface AvatarHeroProps {
-  avatar: { name: string; imageUrl: string | null } | null;
+  avatar: Avatar | null;
+  campaignId: string;
   completedCount: number;
   totalStages: number;
 }
 
-export function AvatarHero({ avatar, completedCount, totalStages }: AvatarHeroProps) {
+export function AvatarHero({ avatar: initialAvatar, campaignId, completedCount, totalStages }: AvatarHeroProps) {
   const [mounted, setMounted] = useState(false);
+  const [avatar, setAvatar] = useState<Avatar | null>(initialAvatar);
+  const [pickerOpen, setPickerOpen] = useState(false);
+
   useEffect(() => {
     const t = setTimeout(() => setMounted(true), 50);
     return () => clearTimeout(t);
   }, []);
 
   const pct = Math.round((completedCount / totalStages) * 100);
+  const imageUrl = avatar?.imageUrls[0] ?? null;
 
   return (
     <>
@@ -68,27 +75,36 @@ export function AvatarHero({ avatar, completedCount, totalStages }: AvatarHeroPr
             style={{ inset: -15 }}
           />
 
-          {/* Avatar image container */}
-          <div
-            className="relative h-full w-full overflow-hidden rounded-full bg-[#191919]"
+          {/* Avatar image container — clickable to open picker */}
+          <button
+            type="button"
+            onClick={() => setPickerOpen(true)}
+            className="group relative h-full w-full overflow-hidden rounded-full bg-[#191919] cursor-pointer"
             style={{
               boxShadow:
                 "0 0 0 1.5px rgba(0,230,118,0.35), 0 0 32px rgba(0,230,118,0.1), 0 0 80px rgba(0,230,118,0.05)",
             }}
           >
-            {avatar?.imageUrl ? (
+            {imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={avatar.imageUrl}
-                alt={avatar.name}
+                src={imageUrl}
+                alt={avatar!.name}
                 className="h-full w-full object-cover"
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center">
-                <User className="h-14 w-14 text-[#00E676]/25" strokeWidth={1} />
+                <User className="h-14 w-14 text-[#00E676]/25 transition-opacity duration-200 group-hover:opacity-0" strokeWidth={1} />
               </div>
             )}
-          </div>
+            {/* Hover overlay */}
+            <div className={`absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/50 transition-opacity duration-200 ${imageUrl ? "opacity-0 group-hover:opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
+              <Plus className="h-7 w-7 text-[#00E676]" strokeWidth={1.5} />
+              <span className="font-mono-data text-[9px] uppercase tracking-widest text-[#00E676]">
+                {imageUrl ? "Change" : "Attach"}
+              </span>
+            </div>
+          </button>
         </div>
 
         {/* Avatar identity */}
@@ -134,6 +150,15 @@ export function AvatarHero({ avatar, completedCount, totalStages }: AvatarHeroPr
           style={{ animation: "connectorDraw 0.4s 0.55s both" }}
         />
       </div>
+
+      {pickerOpen && (
+        <AvatarPickerModal
+          campaignId={campaignId}
+          currentAvatarId={avatar?.id ?? null}
+          onClose={() => setPickerOpen(false)}
+          onAttached={(newAvatar) => setAvatar(newAvatar)}
+        />
+      )}
     </>
   );
 }
