@@ -320,7 +320,7 @@ function parseVisualPlanResponse(text: string): GeneratedVisualPlan {
       imagePrompt: buildImagePrompt(rawImage, sceneType === "A-roll"),
       klingPrompt: buildKlingPrompt(rawKling),
       useAvatarReference: sceneType === "A-roll" || isPhoneListeningScene(combinedText) || isDocScene,
-      useDocumentReference: isDocScene,
+      useDocumentReference: sceneType === "B-roll",
     };
   });
 
@@ -452,7 +452,7 @@ function mockVisualPlan(input: GenerateVisualPlanInput): GeneratedVisualPlan {
       ),
       klingPrompt: buildKlingPrompt(tmpl.klingSuffix),
       useAvatarReference: tmpl.sceneType === "A-roll" || isPhoneListeningScene(tmplText) || isTmplDocScene,
-      useDocumentReference: isTmplDocScene,
+      useDocumentReference: tmpl.sceneType === "B-roll",
     });
   });
 
