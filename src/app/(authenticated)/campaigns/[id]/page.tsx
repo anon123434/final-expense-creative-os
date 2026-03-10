@@ -297,6 +297,18 @@ export default async function OverviewTab({ params }: OverviewPageProps) {
 
       {/* ═══════════ PRINT-ONLY SECTIONS ═══════════ */}
 
+      {/* Objective */}
+      <div className="hidden print:block print-section rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+        <p className="mb-1 font-mono-data text-[9px] uppercase tracking-widest text-gray-400">Objective</p>
+        <p className="text-sm font-semibold text-gray-900">
+          Create a professional, emotional, and persuasive CTV commercial that drives immediate phone call response.
+        </p>
+        <p className="mt-1 text-xs text-gray-600">
+          The finished spot must feel like a real television ad — not a slideshow. High-quality editing, emotional pacing,
+          and strategic b-roll are essential. The target audience is adults 55+ who respond to warmth, simplicity, and urgency.
+        </p>
+      </div>
+
       {/* Selected Concept */}
       {selectedConcept && (
         <div className="hidden print:block print-section rounded-xl border border-gray-200 px-4 py-3">
@@ -317,8 +329,11 @@ export default async function OverviewTab({ params }: OverviewPageProps) {
       {/* Psychological Trigger Sequence */}
       {triggers.filter((t) => t.included).length > 0 && (
         <div className="hidden print:block print-section rounded-xl border border-gray-200 px-4 py-3">
-          <p className="mb-2 font-mono-data text-[9px] uppercase tracking-widest text-gray-400">
+          <p className="mb-1 font-mono-data text-[9px] uppercase tracking-widest text-gray-400">
             Psychological Trigger Sequence
+          </p>
+          <p className="mb-2 text-[10px] text-gray-500">
+            These triggers are built into the script in this order. Your editing should reinforce each beat visually.
           </p>
           <ol className="space-y-1.5">
             {triggers
@@ -343,52 +358,93 @@ export default async function OverviewTab({ params }: OverviewPageProps) {
         </div>
       )}
 
-      {/* Video Editing Guidelines */}
+      {/* Editing Structure */}
       <div className="hidden print:block print-section rounded-xl border border-gray-200 px-4 py-3">
         <p className="mb-2 font-mono-data text-[9px] uppercase tracking-widest text-gray-400">
-          Video Editing Guidelines
+          Editing Structure
         </p>
-        <ul className="list-inside list-disc space-y-1 text-xs text-gray-700">
-          <li>Use the Avatar IV video as the base layer</li>
-          <li>Place b-roll footage on top of the avatar strategically to illustrate key points</li>
-          <li>
-            Use psychological editing techniques (cuts on beats, reaction shots) to improve viewer retention
-          </li>
-          <li>Emphasize important words with font animation / kinetic text</li>
-          <li>Keep all edits clear and easy to follow — target audience is 55+ viewers</li>
-          <li>Maintain strong pacing and visual variation throughout to hold attention</li>
+        <ul className="space-y-1.5 text-xs text-gray-700">
+          <li className="flex gap-2"><span className="shrink-0 font-semibold text-gray-500">Base Layer</span><span>Use the Avatar IV video as the primary video track throughout the entire spot.</span></li>
+          <li className="flex gap-2"><span className="shrink-0 font-semibold text-gray-500">B-Roll</span><span>Layer relevant b-roll footage on top of the avatar to visually illustrate key script moments — family scenes, documents, phones, outdoor settings.</span></li>
+          <li className="flex gap-2"><span className="shrink-0 font-semibold text-gray-500">Pacing</span><span>Cut on beats and emotional peaks. Avoid static holds longer than 3 seconds. Vary shot rhythm to maintain viewer attention throughout.</span></li>
+          <li className="flex gap-2"><span className="shrink-0 font-semibold text-gray-500">Audience</span><span>Target is 55+ adults on connected TV. Keep edits clean and easy to follow — avoid fast cuts, heavy VFX, or anything disorienting.</span></li>
         </ul>
       </div>
 
+      {/* Psychological Editing Techniques */}
+      <div className="hidden print:block print-section rounded-xl border border-gray-200 px-4 py-3">
+        <p className="mb-2 font-mono-data text-[9px] uppercase tracking-widest text-gray-400">
+          Psychological Editing Techniques
+        </p>
+        <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 mb-1">Sound Design</p>
+            <ul className="space-y-1 text-xs text-gray-700 list-disc list-inside">
+              <li>Use warm, emotional background music throughout</li>
+              <li>Lower music slightly under dialogue so voice is clear</li>
+              <li>Add subtle sound effects on key b-roll moments (paper rustling, phone ring, door close)</li>
+              <li>Increase music swell on emotional peaks and the final CTA</li>
+            </ul>
+          </div>
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 mb-1">Text Animation</p>
+            <ul className="space-y-1 text-xs text-gray-700 list-disc list-inside">
+              <li>Emphasize key words with bold kinetic text appearing on screen</li>
+              <li>Highlight the phone number with large, high-contrast text that holds for at least 3 seconds</li>
+              <li>Use simple fade or slide-up animations — nothing flashy</li>
+              <li>Reinforce the benefit amount visually (e.g. "$25,000") when spoken</li>
+            </ul>
+          </div>
+          <div className="mt-1">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 mb-1">Retention Techniques</p>
+            <ul className="space-y-1 text-xs text-gray-700 list-disc list-inside">
+              <li>Cut to a new scene or b-roll every 2–4 seconds during the body</li>
+              <li>Use reaction shots or emotional close-ups to reinforce key emotional moments</li>
+              <li>Re-introduce the avatar face after any long b-roll sequence</li>
+              <li>Never let silence run for more than 1 second</li>
+            </ul>
+          </div>
+          <div className="mt-1">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 mb-1">CTA Sequence</p>
+            <ul className="space-y-1 text-xs text-gray-700 list-disc list-inside">
+              <li>Phone number must appear on screen during both mentions (90s) or the single mention (30s/60s)</li>
+              <li>Hold the phone number text on screen for the full duration it is spoken</li>
+              <li>Music should swell slightly at the CTA to create urgency</li>
+              <li>End on a clean frame — avatar or emotional b-roll, not a hard cut to black</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
       {/* Export Requirements */}
-      <div className="hidden print:block print-section rounded-xl border-2 border-gray-800 px-4 py-3">
+      <div className="hidden print:block print-section rounded-xl border-2 border-gray-900 px-4 py-3">
         <p className="mb-2 font-mono-data text-[9px] uppercase tracking-widest text-gray-500">
-          Export Requirements — REQUIRED
+          ⚠ Export Requirements — NON-NEGOTIABLE
         </p>
         <table className="w-full text-xs text-gray-700">
           <tbody>
-            <tr className="border-b border-gray-100">
-              <td className="w-28 py-1 font-semibold">Duration</td>
-              <td className="py-1">EXACTLY 59 seconds &nbsp;OR&nbsp; EXACTLY 1 minute 29 seconds (1:29)</td>
+            <tr className="border-b border-gray-200 bg-gray-50">
+              <td className="w-28 py-1.5 pl-1 font-bold text-gray-900">Duration</td>
+              <td className="py-1.5 font-bold text-gray-900">EXACTLY 59 seconds &nbsp;–OR–&nbsp; EXACTLY 1 minute 29 seconds (1:29)</td>
             </tr>
             <tr className="border-b border-gray-100">
-              <td className="py-1 font-semibold">Resolution</td>
+              <td className="w-28 py-1 pl-1 font-semibold">Resolution</td>
               <td className="py-1">1080p</td>
             </tr>
             <tr className="border-b border-gray-100">
-              <td className="py-1 font-semibold">Bitrate</td>
+              <td className="py-1 pl-1 font-semibold">Bitrate</td>
               <td className="py-1">12,000 Kbps</td>
             </tr>
             <tr className="border-b border-gray-100">
-              <td className="py-1 font-semibold">Codec</td>
+              <td className="py-1 pl-1 font-semibold">Codec</td>
               <td className="py-1">H.264</td>
             </tr>
             <tr className="border-b border-gray-100">
-              <td className="py-1 font-semibold">Container</td>
+              <td className="py-1 pl-1 font-semibold">Container</td>
               <td className="py-1">MP4</td>
             </tr>
             <tr>
-              <td className="py-1 font-semibold">Frame Rate</td>
+              <td className="py-1 pl-1 font-semibold">Frame Rate</td>
               <td className="py-1">30fps</td>
             </tr>
           </tbody>
@@ -400,14 +456,18 @@ export default async function OverviewTab({ params }: OverviewPageProps) {
         <p className="mb-2 font-mono-data text-[9px] uppercase tracking-widest text-gray-400">
           File Naming Convention
         </p>
-        <p className="text-xs text-gray-700 mb-1">
-          Format:{" "}
-          <code className="rounded bg-gray-100 px-1 font-mono">Name-Platform-Last4</code>
+        <p className="text-xs text-gray-700 mb-2">
+          Format: <code className="rounded bg-gray-100 px-1.5 py-0.5 font-mono font-semibold">Name-Platform-Last4.mp4</code>
         </p>
-        <p className="text-xs text-gray-500">
-          Example:{" "}
-          <code className="rounded bg-gray-100 px-1 font-mono">Martha-Roku-0026.mp4</code>
-        </p>
+        <div className="rounded bg-gray-50 border border-gray-200 px-3 py-2">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 mb-1">Example breakdown</p>
+          <p className="font-mono text-sm font-bold text-gray-900">Martha-Roku-0026.mp4</p>
+          <div className="mt-1.5 grid grid-cols-3 gap-1 text-[10px] text-gray-500">
+            <span><strong>Martha</strong> = Avatar name</span>
+            <span><strong>Roku</strong> = Platform</span>
+            <span><strong>0026</strong> = Last 4 of phone #</span>
+          </div>
+        </div>
       </div>
     </div>
   );
