@@ -15,7 +15,8 @@
 import type { Campaign } from "@/types";
 import type { SceneCard } from "@/types/scene";
 import { buildImagePrompt, buildKlingPrompt, PHONE_LISTENING_BEAT, isPhoneListeningScene, CHECK_HOLDING_BEAT, isCheckHoldingScene, APPROVAL_LETTER_BEAT, isApprovalLetterScene } from "./prompt-style-guide";
-import { generateTextWithOpenAI, isProviderConfigured } from "@/lib/llm";
+import { generateTextWithOpenAI, generateText as generateTextWithClaude, isProviderConfigured } from "@/lib/llm";
+import { isClaudeConfigured } from "@/lib/llm/providers/claude";
 
 // ── Service types ──────────────────────────────────────────────────────────
 
@@ -566,7 +567,22 @@ export async function generateVisualPlan(
       });
       return parseVisualPlanResponse(raw);
     } catch (err) {
-      console.error("[generateVisualPlan] OpenAI error, falling back to mock:", err);
+      console.error("[generateVisualPlan] OpenAI error, trying Claude fallback:", err);
+    }
+  }
+
+  // ── Claude fallback path ─────────────────────────────────────────────
+  if (isClaudeConfigured()) {
+    try {
+      const raw = await generateTextWithClaude({
+        system: SYSTEM,
+        prompt: buildVisualPlanPrompt(input),
+        maxTokens: 8192,
+        temperature: 0.6,
+      });
+      return parseVisualPlanResponse(raw);
+    } catch (err) {
+      console.error("[generateVisualPlan] Claude error, falling back to mock:", err);
     }
   }
 
@@ -660,21 +676,17 @@ ${avoidList}
 
 Generate 3 new B-roll ideas now.`;
 
-  try {
-    const rawText = await generateTextWithOpenAI({ system: systemPrompt, prompt: userPrompt });
+  async function parseMoreBRollResponse(rawText: string): Promise<GeneratedMoreBRoll> {
     const trimmed = rawText.trim().replace(/^```json?\s*/i, "").replace(/```\s*$/, "");
-
     let parsed: Array<Record<string, unknown>>;
     try {
       parsed = JSON.parse(trimmed);
       if (!Array.isArray(parsed)) throw new Error("Not an array");
     } catch {
-      throw new Error(`OpenAI returned invalid JSON for generateMoreBRoll: ${rawText.slice(0, 200)}`);
+      throw new Error(`Invalid JSON for generateMoreBRoll: ${rawText.slice(0, 200)}`);
     }
-
     const newIdeas: string[] = [];
     const newScenes: SceneCard[] = [];
-
     parsed.forEach((item, i) => {
       const idea = String(item.idea ?? item.shotIdea ?? "New B-roll idea");
       const imageDesc = String(item.image_prompt ?? "");
@@ -694,10 +706,29 @@ Generate 3 new B-roll ideas now.`;
         useDocumentReference: false,
       });
     });
-
     return { newIdeas, newScenes };
-  } catch (err) {
-    console.error("[generateMoreBRoll] OpenAI call failed:", err);
-    throw err;
   }
+
+  // ── OpenAI path ──────────────────────────────────────────────────────
+  if (isProviderConfigured("generateMoreBRoll")) {
+    try {
+      const rawText = await generateTextWithOpenAI({ system: systemPrompt, prompt: userPrompt });
+      return parseMoreBRollResponse(rawText);
+    } catch (err) {
+      console.error("[generateMoreBRoll] OpenAI call failed, trying Claude:", err);
+    }
+  }
+
+  // ── Claude fallback ──────────────────────────────────────────────────
+  if (isClaudeConfigured()) {
+    try {
+      const raw = await generateTextWithClaude({ system: systemPrompt, prompt: userPrompt });
+      return parseMoreBRollResponse(raw);
+    } catch (err) {
+      console.error("[generateMoreBRoll] Claude fallback also failed:", err);
+      throw err;
+    }
+  }
+
+  throw new Error("No AI provider configured. Add an OpenAI or Anthropic API key in Settings.");
 }
