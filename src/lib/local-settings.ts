@@ -16,6 +16,7 @@ interface LocalSettings {
   seedreamApiKey?: string | null;
   geminiApiKey?: string | null;
   klingApiKey?: string | null;
+  heygenApiKey?: string | null;
 }
 
 export function readLocalSettings(): LocalSettings {

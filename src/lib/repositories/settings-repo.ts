@@ -42,6 +42,7 @@ export async function getSettingsByUserId(userId: string): Promise<UserSettings 
     seedreamApiKey: local.seedreamApiKey ?? null,
     geminiApiKey: local.geminiApiKey ?? null,
     klingApiKey: local.klingApiKey ?? null,
+    heygenApiKey: local.heygenApiKey ?? null,
     updatedAt: now,
   };
 }
@@ -53,6 +54,7 @@ export interface UpsertSettingsData {
   seedreamApiKey?: string | null;
   geminiApiKey?: string | null;
   klingApiKey?: string | null;
+  heygenApiKey?: string | null;
 }
 
 export async function upsertSettings(
@@ -73,6 +75,7 @@ export async function upsertSettings(
             seedream_api_key: data.seedreamApiKey ?? null,
             gemini_api_key: data.geminiApiKey ?? null,
             kling_api_key: data.klingApiKey ?? null,
+            heygen_api_key: data.heygenApiKey ?? null,
           },
           { onConflict: "user_id" }
         )
@@ -98,6 +101,7 @@ export async function upsertSettings(
     seedreamApiKey: data.seedreamApiKey ?? null,
     geminiApiKey: data.geminiApiKey ?? null,
     klingApiKey: data.klingApiKey ?? null,
+    heygenApiKey: data.heygenApiKey ?? null,
     updatedAt: now,
   };
 }

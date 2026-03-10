@@ -237,6 +237,7 @@ export interface SettingsRow {
   seedream_api_key: string | null;
   gemini_api_key: string | null;
   kling_api_key: string | null;
+  heygen_api_key: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -249,6 +250,7 @@ export interface SettingsUpsert {
   seedream_api_key?: string | null;
   gemini_api_key?: string | null;
   kling_api_key?: string | null;
+  heygen_api_key?: string | null;
 }
 
 export interface CreativeVariationInsert {

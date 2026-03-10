@@ -8,6 +8,7 @@ export interface UserSettings {
   seedreamApiKey: string | null;
   geminiApiKey: string | null;
   klingApiKey: string | null;
+  heygenApiKey: string | null;
   updatedAt: string;
 }
 
@@ -19,6 +20,7 @@ export interface SettingsKeyStatus {
   seedream: boolean;
   gemini: boolean;
   kling: boolean;
+  heygen: boolean;
 }
 
 /** Shape of the form data sent from the settings page. */
@@ -29,4 +31,5 @@ export interface SettingsFormData {
   seedreamApiKey: string;
   geminiApiKey: string;
   klingApiKey: string;
+  heygenApiKey: string;
 }

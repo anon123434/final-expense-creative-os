@@ -177,6 +177,7 @@ export function toSettings(row: SettingsRow): UserSettings {
     seedreamApiKey: row.seedream_api_key,
     geminiApiKey: row.gemini_api_key,
     klingApiKey: row.kling_api_key,
+    heygenApiKey: row.heygen_api_key,
     updatedAt: row.updated_at,
   };
 }

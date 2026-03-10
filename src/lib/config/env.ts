@@ -73,6 +73,7 @@ interface SettingsKeyCache {
   seedream: string | null;
   gemini: string | null;
   kling: string | null;
+  heygen: string | null;
 }
 
 // Store on globalThis so the cache survives module re-evaluations in Next.js dev mode.
@@ -146,6 +147,16 @@ export function resolveGeminiApiKey(): string | undefined {
 
 export function hasGeminiKey(): boolean {
   return !!resolveGeminiApiKey();
+}
+
+// --- HeyGen ---
+
+export function resolveHeyGenApiKey(): string | undefined {
+  return getCache()?.heygen ?? readServerVar("HEYGEN_API_KEY");
+}
+
+export function hasHeyGenKey(): boolean {
+  return !!resolveHeyGenApiKey();
 }
 
 // ── Summary (useful for startup logging) ─────────────────────────────────

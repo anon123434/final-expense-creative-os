@@ -61,6 +61,13 @@ const KEY_FIELDS: KeyFieldConfig[] = [
     hint: "AI video generation. Coming soon.",
     group: "future",
   },
+  {
+    key: "heygenApiKey",
+    label: "HeyGen API Key",
+    placeholder: "api-key-…",
+    hint: "Powers talking video generation from scene stills.",
+    group: "active",
+  },
 ];
 
 // ── Component ────────────────────────────────────────────────────────────
@@ -79,6 +86,7 @@ export function SettingsForm({ maskedKeys }: SettingsFormProps) {
     seedreamApiKey: "",
     geminiApiKey: "",
     klingApiKey: "",
+    heygenApiKey: "",
   });
 
   const [showKey, setShowKey] = useState<Record<string, boolean>>({});
@@ -112,6 +120,7 @@ export function SettingsForm({ maskedKeys }: SettingsFormProps) {
           seedreamApiKey: "",
           geminiApiKey: "",
           klingApiKey: "",
+          heygenApiKey: "",
         });
         setTimeout(() => setStatus("idle"), 3000);
       } else {

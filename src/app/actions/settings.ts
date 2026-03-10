@@ -43,6 +43,7 @@ export async function getSettingsStatusAction(): Promise<
         seedream: !!settings?.seedreamApiKey,
         gemini: !!settings?.geminiApiKey,
         kling: !!settings?.klingApiKey,
+        heygen: !!settings?.heygenApiKey,
       },
       maskedKeys: {
         claudeApiKey: mask(settings?.claudeApiKey ?? null),
@@ -51,6 +52,7 @@ export async function getSettingsStatusAction(): Promise<
         seedreamApiKey: mask(settings?.seedreamApiKey ?? null),
         geminiApiKey: mask(settings?.geminiApiKey ?? null),
         klingApiKey: mask(settings?.klingApiKey ?? null),
+        heygenApiKey: mask(settings?.heygenApiKey ?? null),
       },
     };
   } catch (err) {
@@ -84,6 +86,7 @@ export async function saveSettingsAction(
       seedreamApiKey: resolveKey(formData.seedreamApiKey, existing?.seedreamApiKey ?? null),
       geminiApiKey: resolveKey(formData.geminiApiKey, existing?.geminiApiKey ?? null),
       klingApiKey: resolveKey(formData.klingApiKey, existing?.klingApiKey ?? null),
+      heygenApiKey: resolveKey(formData.heygenApiKey, existing?.heygenApiKey ?? null),
     });
 
     // Reset cached LLM clients so they pick up new keys on next call
@@ -104,6 +107,7 @@ export async function saveSettingsAction(
         seedreamApiKey: mask(saved.seedreamApiKey ?? null),
         geminiApiKey: mask(saved.geminiApiKey ?? null),
         klingApiKey: mask(saved.klingApiKey ?? null),
+        heygenApiKey: mask(saved.heygenApiKey ?? null),
       },
     };
   } catch (err) {

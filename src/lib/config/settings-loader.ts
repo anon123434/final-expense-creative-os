@@ -27,6 +27,7 @@ export async function loadSettingsKeys(userId: string): Promise<void> {
         seedream: settings.seedreamApiKey,
         gemini: settings.geminiApiKey,
         kling: settings.klingApiKey,
+        heygen: settings.heygenApiKey,
       });
     } else {
       setSettingsCache(null);
