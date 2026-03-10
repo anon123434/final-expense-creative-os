@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronDown, ChevronUp, Copy, Check, Clapperboard, Camera, Sparkles, Download, UserCircle, FileImage } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ChevronDown, ChevronUp, Copy, Check, Clapperboard, Camera, Sparkles, Download, UserCircle, FileImage, Mic, Video } from "lucide-react";
 import type { SceneCard } from "@/types/scene";
 import { cn } from "@/lib/utils";
-import { generateSceneImageAction, uploadDocumentAssetAction } from "@/app/actions/visual-plan";
+import { generateSceneImageAction, uploadDocumentAssetAction, generateTalkingVideoAction, checkVideoStatusAction } from "@/app/actions/visual-plan";
 
 interface SceneCardProps {
   scene: SceneCard;
@@ -22,6 +22,12 @@ export function SceneCardItem({ scene, onChange, campaignId, avatarId }: SceneCa
   const [elapsed, setElapsed] = useState(0);
   const [uploadingDoc, setUploadingDoc] = useState(false);
   const [docUploadError, setDocUploadError] = useState<string | null>(null);
+  const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [audioBase64, setAudioBase64] = useState<string | null>(null);
+  const [generatingVideo, setGeneratingVideo] = useState(false);
+  const [videoError, setVideoError] = useState<string | null>(null);
+  const [videoElapsed, setVideoElapsed] = useState(0);
+  const [pollingVideoId, setPollingVideoId] = useState<string | null>(scene.videoJobId ?? null);
 
   function update(field: EditableField, value: string) {
     onChange({ ...scene, [field]: value });
@@ -113,6 +119,100 @@ export function SceneCardItem({ scene, onChange, campaignId, avatarId }: SceneCa
       e.target.value = "";
     }
   }
+
+  function handleAudioSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAudioFile(file);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      setAudioBase64(result.split(",")[1]);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function handleGenerateVideo() {
+    if (!scene.generatedImageUrl || !audioBase64 || !audioFile || generatingVideo) return;
+    setGeneratingVideo(true);
+    setVideoError(null);
+    setVideoElapsed(0);
+    const start = Date.now();
+    const timer = setInterval(() => setVideoElapsed(Math.floor((Date.now() - start) / 1000)), 1000);
+
+    const result = await generateTalkingVideoAction(
+      campaignId,
+      scene.sceneNumber,
+      scene.generatedImageUrl,
+      audioBase64,
+      audioFile.type || "audio/mpeg"
+    );
+    clearInterval(timer);
+
+    if (!result.success) {
+      setGeneratingVideo(false);
+      setVideoError(result.error);
+      return;
+    }
+
+    // Store jobId on scene and start polling
+    onChange({ ...scene, videoJobId: result.data.videoId });
+    setPollingVideoId(result.data.videoId);
+    // generatingVideo stays true; polling useEffect will clear it when done
+  }
+
+  async function handleVideoDownload() {
+    if (!scene.generatedVideoUrl) return;
+    try {
+      const res = await fetch(scene.generatedVideoUrl);
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objectUrl;
+      a.download = `scene-${scene.sceneNumber}-talking.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(objectUrl);
+    } catch {
+      // silently fail
+    }
+  }
+
+  useEffect(() => {
+    if (!pollingVideoId || scene.generatedVideoUrl) return;
+    let cancelled = false;
+
+    const poll = async () => {
+      while (!cancelled) {
+        await new Promise<void>((r) => setTimeout(r, 5000));
+        if (cancelled) break;
+        const result = await checkVideoStatusAction(pollingVideoId);
+        if (!result.success) {
+          setVideoError(result.error);
+          setGeneratingVideo(false);
+          break;
+        }
+        const { status, videoUrl } = result.data;
+        if (status === "completed" && videoUrl) {
+          onChange({ ...scene, generatedVideoUrl: videoUrl, videoJobId: pollingVideoId });
+          setGeneratingVideo(false);
+          setPollingVideoId(null);
+          break;
+        }
+        if (status === "failed") {
+          setVideoError("Video generation failed on HeyGen.");
+          setGeneratingVideo(false);
+          break;
+        }
+        // pending/processing — loop continues
+      }
+    };
+
+    setGeneratingVideo(true);
+    void poll();
+    return () => { cancelled = true; };
+  }, [pollingVideoId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className={cn(
@@ -393,6 +493,72 @@ export function SceneCardItem({ scene, onChange, campaignId, avatarId }: SceneCa
               </div>
             )}
           </div>
+
+          {/* Talking Video — A-roll only, requires generated image */}
+          {scene.sceneType === "A-roll" && scene.generatedImageUrl && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Talking Video
+                </span>
+              </div>
+
+              {scene.generatedVideoUrl ? (
+                <div className="space-y-1.5">
+                  {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+                  <video
+                    src={scene.generatedVideoUrl}
+                    controls
+                    className="w-full rounded-lg border border-border aspect-video bg-black"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleVideoDownload}
+                    className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-muted transition-colors"
+                  >
+                    <Download className="h-3 w-3" /> Download Video
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <label
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[10px] font-medium cursor-pointer transition-colors",
+                      audioFile
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                        : "border-border bg-muted/50 text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    <Mic className="h-3 w-3" />
+                    {audioFile ? audioFile.name : "Upload Audio File"}
+                    <input
+                      type="file"
+                      accept="audio/*"
+                      className="sr-only"
+                      onChange={handleAudioSelect}
+                      disabled={generatingVideo}
+                    />
+                  </label>
+
+                  <button
+                    type="button"
+                    onClick={handleGenerateVideo}
+                    disabled={!audioBase64 || generatingVideo}
+                    className={cn(
+                      "flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed py-3 text-xs font-medium transition-colors",
+                      "border-rose-200 text-rose-600 hover:bg-rose-50/50 hover:border-rose-300",
+                      "disabled:cursor-not-allowed disabled:opacity-50"
+                    )}
+                  >
+                    <Video className={cn("h-4 w-4", generatingVideo && "animate-pulse")} />
+                    {generatingVideo ? `Generating… ${videoElapsed}s` : "Generate Talking Video"}
+                  </button>
+
+                  {videoError && <p className="text-xs text-destructive">{videoError}</p>}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Kling prompt */}
           <CopyableField

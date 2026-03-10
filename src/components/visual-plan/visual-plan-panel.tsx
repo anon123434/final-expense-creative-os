@@ -115,6 +115,11 @@ export function VisualPlanPanel({
         ]);
       }
 
+      // Auto-save to DB when a new generated video URL lands
+      if (updated.generatedVideoUrl && updated.generatedVideoUrl !== prevScene?.generatedVideoUrl && scriptId && plan) {
+        void saveVisualPlanAction(campaignId, scriptId, overallDirection, baseLayer, plan.aRoll ?? [], plan.bRoll ?? [], newScenes);
+      }
+
       return newScenes;
     });
     setIsDirty(true);
