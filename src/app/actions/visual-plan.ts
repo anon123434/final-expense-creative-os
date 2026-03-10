@@ -134,7 +134,7 @@ export async function generateSceneImageAction(
 
     const { base64, mimeType } = await generateSingleImage(prompt, refImages.length ? refImages : null, documentImage);
     const url = await uploadGeneratedImage(
-      `generated/scenes/${campaignId}/${sceneIndex}.png`,
+      `generated/scenes/${campaignId}/${sceneIndex}-${Date.now()}.png`,
       base64,
       mimeType
     );
