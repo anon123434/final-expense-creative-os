@@ -30,7 +30,12 @@ export function readLocalSettings(): LocalSettings {
 }
 
 export function writeLocalSettings(data: LocalSettings): void {
-  const existing = readLocalSettings();
-  const merged = { ...existing, ...data };
-  fs.writeFileSync(SETTINGS_FILE, JSON.stringify(merged, null, 2), "utf-8");
+  try {
+    const existing = readLocalSettings();
+    const merged = { ...existing, ...data };
+    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(merged, null, 2), "utf-8");
+  } catch {
+    // Silently fail in read-only environments (e.g. Vercel production).
+    // In production, settings are persisted via Supabase — local file is dev-only.
+  }
 }
