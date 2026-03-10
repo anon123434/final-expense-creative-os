@@ -276,8 +276,16 @@ APPROVAL LETTER BEAT (apply automatically):
 AVATAR LIKENESS RULES (when an avatar description is provided):
 - Every A-roll image_prompt MUST begin with the exact avatar description verbatim, followed by the scene details.
 - Every B-roll image_prompt that features a person who could be the spokesperson MUST also include the avatar description.
-- Every B-roll scene that features family members, loved ones, friends, or other characters (grandchildren, spouses, adult children, etc.) MUST describe those characters as visually consistent with the avatar's family: same race and ethnicity, same skin tone, same general hair color and texture. Do NOT copy the avatar's exact face — they are family members who resemble the avatar, not clones. Use phrases like "same warm brown skin tone as the protagonist", "matching olive complexion", "same dark hair, clearly part of the same family".
-- Maintain strict visual and ethnic consistency across all human subjects throughout the full scene sequence.`;
+- Every B-roll scene that features family members, loved ones, friends, or other characters (grandchildren, spouses, adult children, etc.) MUST describe those characters as visually consistent with the avatar's family: EXACTLY matching race and ethnicity, skin tone, hair color and texture. Do NOT copy the avatar's exact face — they are family members who resemble the avatar, not clones.
+- CRITICAL — RACE AND SKIN EXTRACTION: Read the avatar description carefully for ethnicity markers. Examples:
+  • "white woman", "Caucasian", "European" → fair/light skin, white/Caucasian family. Do NOT give them brown skin.
+  • "African American", "Black woman" → deep brown skin, Black family.
+  • "Hispanic", "Latina" → olive/warm brown skin, Hispanic family.
+  • "Asian" → Asian features, Asian family.
+  • "Indian", "South Asian" → South Asian features, South Asian family.
+- When the avatar is a white/Caucasian woman: all family members (adult children, grandchildren, spouse) must have fair/light skin and Caucasian features. Use phrases like "fair-skinned adult daughter, same light complexion as the protagonist, clearly Caucasian".
+- NEVER default to brown or dark skin tones for family members when the avatar description indicates a white or fair-skinned person.
+- Maintain strict visual, racial, and ethnic consistency across every human subject in the full scene sequence.`;
 
 // ── Prompt builder ───────────────────────────────────────────────────────
 
@@ -373,22 +381,51 @@ function parseVisualPlanResponse(text: string): GeneratedVisualPlan {
 
 function buildFamilyResemblanceNote(avatarDescription: string | null | undefined): string {
   if (!avatarDescription) return "";
-  // Look for common race/skin/hair phrases to surface as a family note
   const lower = avatarDescription.toLowerCase();
   const cues: string[] = [];
-  if (/dark\s*brown\s*skin|deep\s*brown\s*skin|ebony\s*skin|black\s*skin/i.test(avatarDescription)) cues.push("same deep brown skin tone");
-  else if (/medium\s*brown\s*skin|warm\s*brown\s*skin|caramel\s*skin|tan\s*skin/i.test(avatarDescription)) cues.push("same warm brown skin tone");
-  else if (/light\s*brown\s*skin|olive\s*skin|bronze\s*skin/i.test(avatarDescription)) cues.push("same olive complexion");
-  else if (/fair\s*skin|pale\s*skin|light\s*skin/i.test(avatarDescription)) cues.push("same fair complexion");
-  if (/black\s*hair/i.test(avatarDescription)) cues.push("same dark black hair");
-  else if (/dark\s*brown\s*hair/i.test(avatarDescription)) cues.push("same dark brown hair");
-  else if (/grey\s*hair|gray\s*hair|silver\s*hair|white\s*hair/i.test(avatarDescription)) cues.push("same grey hair");
-  else if (/blonde\s*hair|blond\s*hair/i.test(avatarDescription)) cues.push("same blonde hair");
-  if (/african\s*american|black\s*american/i.test(lower)) cues.push("African American family");
-  else if (/hispanic|latina|latino|mexican|puerto\s*rican/i.test(lower)) cues.push("Hispanic family");
-  else if (/asian|chinese|korean|japanese|vietnamese|filipino/i.test(lower)) cues.push("Asian family");
-  else if (/south\s*asian|indian|pakistani|bengali/i.test(lower)) cues.push("South Asian family");
-  else if (/middle\s*eastern|arab/i.test(lower)) cues.push("Middle Eastern family");
+
+  // ── Skin tone ──────────────────────────────────────────────────────────
+  if (/dark\s*brown\s*skin|deep\s*brown\s*skin|ebony\s*skin|black\s*skin/i.test(avatarDescription)) {
+    cues.push("same deep brown skin tone");
+  } else if (/medium\s*brown\s*skin|warm\s*brown\s*skin|caramel\s*skin|tan\s*skin/i.test(avatarDescription)) {
+    cues.push("same warm brown skin tone");
+  } else if (/light\s*brown\s*skin|olive\s*skin|bronze\s*skin/i.test(avatarDescription)) {
+    cues.push("same olive complexion");
+  } else if (/fair\s*skin|pale\s*skin|light\s*skin|porcelain\s*skin/i.test(avatarDescription)) {
+    cues.push("same fair skin");
+  } else if (/white\s*woman|white\s*man|white\s*person|caucasian|white\s*elderly|white\s*senior|white\s*lady/i.test(avatarDescription)) {
+    // "white woman", "caucasian", etc. without an explicit skin descriptor
+    cues.push("same fair Caucasian skin tone");
+  }
+
+  // ── Hair ──────────────────────────────────────────────────────────────
+  if (/black\s*hair/i.test(avatarDescription)) {
+    cues.push("same dark black hair");
+  } else if (/dark\s*brown\s*hair/i.test(avatarDescription)) {
+    cues.push("same dark brown hair");
+  } else if (/grey\s*hair|gray\s*hair|silver\s*hair|white\s*hair/i.test(avatarDescription)) {
+    cues.push("same grey hair");
+  } else if (/blonde\s*hair|blond\s*hair/i.test(avatarDescription)) {
+    cues.push("same blonde hair");
+  } else if (/red\s*hair|auburn\s*hair/i.test(avatarDescription)) {
+    cues.push("same red/auburn hair");
+  }
+
+  // ── Ethnicity ─────────────────────────────────────────────────────────
+  if (/african\s*american|black\s*american/i.test(lower)) {
+    cues.push("African American family");
+  } else if (/hispanic|latina|latino|mexican|puerto\s*rican/i.test(lower)) {
+    cues.push("Hispanic family");
+  } else if (/asian|chinese|korean|japanese|vietnamese|filipino/i.test(lower)) {
+    cues.push("Asian family");
+  } else if (/south\s*asian|indian|pakistani|bengali/i.test(lower)) {
+    cues.push("South Asian family");
+  } else if (/middle\s*eastern|arab/i.test(lower)) {
+    cues.push("Middle Eastern family");
+  } else if (/white\s*woman|white\s*man|white\s*person|caucasian/i.test(lower)) {
+    cues.push("white/Caucasian family");
+  }
+
   if (cues.length === 0) return "";
   return `(family members share the protagonist's traits: ${cues.join(", ")})`;
 }
