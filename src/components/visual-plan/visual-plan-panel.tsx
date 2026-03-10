@@ -1,14 +1,14 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Film, Save, AlertCircle, ChevronDown, CheckCircle2, Circle, UserCircle, RefreshCw, Copy, Check, Download, Images, FolderDown, Video } from "lucide-react";
+import { Film, Save, AlertCircle, ChevronDown, CheckCircle2, Circle, UserCircle, RefreshCw, Copy, Check, Download, Images, FolderDown, Video, Sparkles } from "lucide-react";
 import { useRef, useEffect } from "react";
 import type { Script, VisualPlan } from "@/types";
 import type { Avatar } from "@/types/avatar";
 import type { SceneCard } from "@/types/scene";
 import type { GeneratedAsset } from "@/lib/repositories/visual-plan-repo";
 import { SceneCardItem } from "./scene-card";
-import { generateVisualPlanAction, saveVisualPlanAction } from "@/app/actions/visual-plan";
+import { generateVisualPlanAction, saveVisualPlanAction, generateMoreBRollAction } from "@/app/actions/visual-plan";
 import { AvatarPickerModal } from "@/components/avatars/avatar-picker-modal";
 import { cn } from "@/lib/utils";
 import { ProviderBadge } from "@/components/ui/provider-badge";
@@ -47,6 +47,7 @@ export function VisualPlanPanel({
   const [generating, startGenerating] = useTransition();
   const [saving, startSaving] = useTransition();
   const [assets, setAssets] = useState<GeneratedAsset[]>(initialAssets);
+  const [generatingMoreBRoll, setGeneratingMoreBRoll] = useState(false);
 
   const loading = generating || saving;
 
@@ -148,6 +149,24 @@ export function VisualPlanPanel({
         setError(result.error);
       }
     });
+  }
+
+  async function handleGenerateMoreBRoll() {
+    if (!scriptId || generatingMoreBRoll) return;
+    setGeneratingMoreBRoll(true);
+    const result = await generateMoreBRollAction(campaignId, scriptId);
+    setGeneratingMoreBRoll(false);
+    if (result.success) {
+      const newPlan = result.data.plan;
+      setPlan(newPlan);
+      setScenes(prev => {
+        const existingNums = new Set(prev.map(s => s.sceneNumber));
+        const brandNewScenes = (newPlan.sceneBreakdown ?? []).filter(s => !existingNums.has(s.sceneNumber));
+        return [...prev, ...brandNewScenes];
+      });
+    } else {
+      setError(result.error);
+    }
   }
 
   const hasPlan = scenes.length > 0;
@@ -301,7 +320,13 @@ export function VisualPlanPanel({
                         <IdeaList label="A-Roll Ideas" items={plan.aRoll} accentColor="blue" />
                       )}
                       {plan.bRoll && plan.bRoll.length > 0 && (
-                        <IdeaList label="B-Roll Ideas" items={plan.bRoll} accentColor="amber" />
+                        <IdeaList
+                          label="B-Roll Ideas"
+                          items={plan.bRoll}
+                          accentColor="amber"
+                          onGenerate={handleGenerateMoreBRoll}
+                          generating={generatingMoreBRoll}
+                        />
                       )}
                     </section>
                   )}
@@ -391,17 +416,34 @@ function IdeaList({
   label,
   items,
   accentColor,
+  onGenerate,
+  generating,
 }: {
   label: string;
   items: string[];
   accentColor: "blue" | "amber";
+  onGenerate?: () => void;
+  generating?: boolean;
 }) {
   const dot = accentColor === "blue" ? "bg-blue-400" : "bg-amber-400";
   return (
     <div className="space-y-1.5">
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-        {label}
-      </p>
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          {label}
+        </p>
+        {onGenerate && (
+          <button
+            type="button"
+            onClick={onGenerate}
+            disabled={generating}
+            className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700 hover:bg-amber-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Sparkles className={cn("h-2.5 w-2.5", generating && "animate-pulse")} />
+            {generating ? "Generating…" : "Generate More"}
+          </button>
+        )}
+      </div>
       <ul className="space-y-1 rounded-md border bg-muted/20 px-3 py-2">
         {items.map((item, i) => (
           <li key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
