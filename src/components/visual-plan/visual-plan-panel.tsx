@@ -80,59 +80,51 @@ export function VisualPlanPanel({
   }
 
   function handleSceneChange(updated: SceneCard) {
-    setScenes((prev) => {
-      const prevScene = prev.find(s => s.sceneNumber === updated.sceneNumber);
-      const newScenes = prev.map((s) => (s.sceneNumber === updated.sceneNumber ? updated : s));
-
-      // Auto-save to DB when a new generated image URL lands
-      if (
-        updated.generatedImageUrl &&
-        updated.generatedImageUrl !== prevScene?.generatedImageUrl &&
-        scriptId && plan
-      ) {
-        void saveVisualPlanAction(
-          campaignId,
-          scriptId,
-          overallDirection,
-          baseLayer,
-          plan.aRoll ?? [],
-          plan.bRoll ?? [],
-          newScenes
-        );
-        // Optimistically add to left column assets
-        setAssets(a => {
-          const existing = a.find(x => x.planId === plan.id && x.sceneNumber === updated.sceneNumber);
-          return [
-            {
-              planId: plan.id,
-              sceneNumber: updated.sceneNumber,
-              sceneType: updated.sceneType,
-              shotIdea: updated.shotIdea,
-              imageUrl: updated.generatedImageUrl!,
-              videoUrl: existing?.videoUrl ?? updated.generatedVideoUrl ?? null,
-              imagePrompt: updated.imagePrompt,
-              klingPrompt: updated.klingPrompt,
-              createdAt: new Date().toISOString(),
-            },
-            ...a.filter(x => !(x.planId === plan.id && x.sceneNumber === updated.sceneNumber)),
-          ];
-        });
-      }
-
-      // Auto-save to DB when a new generated video URL lands + update asset in panel
-      if (updated.generatedVideoUrl && updated.generatedVideoUrl !== prevScene?.generatedVideoUrl && scriptId && plan) {
-        void saveVisualPlanAction(campaignId, scriptId, overallDirection, baseLayer, plan.aRoll ?? [], plan.bRoll ?? [], newScenes);
-        setAssets(a => a.map(x =>
-          x.planId === plan.id && x.sceneNumber === updated.sceneNumber
-            ? { ...x, videoUrl: updated.generatedVideoUrl! }
-            : x
-        ));
-      }
-
-      return newScenes;
-    });
+    const prevScene = scenes.find(s => s.sceneNumber === updated.sceneNumber);
+    const newScenes = scenes.map((s) => (s.sceneNumber === updated.sceneNumber ? updated : s));
+    setScenes(newScenes);
     setIsDirty(true);
     setSaveStatus("idle");
+
+    // Auto-save + add to assets when a new generated image URL lands
+    if (
+      updated.generatedImageUrl &&
+      updated.generatedImageUrl !== prevScene?.generatedImageUrl &&
+      scriptId && plan
+    ) {
+      void saveVisualPlanAction(campaignId, scriptId, overallDirection, baseLayer, plan.aRoll ?? [], plan.bRoll ?? [], newScenes);
+      setAssets(a => {
+        const existing = a.find(x => x.planId === plan.id && x.sceneNumber === updated.sceneNumber);
+        return [
+          {
+            planId: plan.id,
+            sceneNumber: updated.sceneNumber,
+            sceneType: updated.sceneType,
+            shotIdea: updated.shotIdea,
+            imageUrl: updated.generatedImageUrl!,
+            videoUrl: existing?.videoUrl ?? updated.generatedVideoUrl ?? null,
+            imagePrompt: updated.imagePrompt,
+            klingPrompt: updated.klingPrompt,
+            createdAt: new Date().toISOString(),
+          },
+          ...a.filter(x => !(x.planId === plan.id && x.sceneNumber === updated.sceneNumber)),
+        ];
+      });
+    }
+
+    // Auto-save + update asset when a new generated video URL lands
+    if (
+      updated.generatedVideoUrl &&
+      updated.generatedVideoUrl !== prevScene?.generatedVideoUrl &&
+      scriptId && plan
+    ) {
+      void saveVisualPlanAction(campaignId, scriptId, overallDirection, baseLayer, plan.aRoll ?? [], plan.bRoll ?? [], newScenes);
+      setAssets(a => a.map(x =>
+        x.planId === plan.id && x.sceneNumber === updated.sceneNumber
+          ? { ...x, videoUrl: updated.generatedVideoUrl! }
+          : x
+      ));
+    }
   }
 
   function handleSave() {
