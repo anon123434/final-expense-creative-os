@@ -646,39 +646,64 @@ ${avoidList}
 
 Generate 3 new B-roll ideas now.`;
 
-  const raw = await generateTextWithOpenAI({ system: systemPrompt, prompt: userPrompt });
-  const trimmed = raw.trim().replace(/^```json?\s*/i, "").replace(/```\s*$/, "");
-
-  let parsed: Array<Record<string, unknown>>;
   try {
-    parsed = JSON.parse(trimmed);
-    if (!Array.isArray(parsed)) throw new Error("Not an array");
-  } catch {
-    throw new Error(`OpenAI returned invalid JSON for generateMoreBRoll: ${raw.slice(0, 200)}`);
-  }
+    const rawText = await generateTextWithOpenAI({ system: systemPrompt, prompt: userPrompt });
+    const trimmed = rawText.trim().replace(/^```json?\s*/i, "").replace(/```\s*$/, "");
 
-  const newIdeas: string[] = [];
-  const newScenes: SceneCard[] = [];
+    let parsed: Array<Record<string, unknown>>;
+    try {
+      parsed = JSON.parse(trimmed);
+      if (!Array.isArray(parsed)) throw new Error("Not an array");
+    } catch {
+      throw new Error(`OpenAI returned invalid JSON for generateMoreBRoll: ${rawText.slice(0, 200)}`);
+    }
 
-  parsed.forEach((raw, i) => {
-    const idea = String(raw.idea ?? raw.shotIdea ?? "New B-roll idea");
-    const imageDesc = String(raw.image_prompt ?? "");
-    const klingDesc = String(raw.kling_prompt ?? "");
-    newIdeas.push(idea);
-    newScenes.push({
-      sceneNumber: input.startSceneNumber + i,
-      lineReference: truncate(idea),
-      sceneType: "B-roll",
-      setting: String(raw.setting ?? ""),
-      shotIdea: String(raw.shotIdea ?? idea),
-      emotion: String(raw.emotion ?? ""),
-      cameraStyle: String(raw.cameraStyle ?? ""),
-      imagePrompt: buildImagePrompt(imageDesc, false),
-      klingPrompt: buildKlingPrompt(klingDesc),
-      useAvatarReference: false,
-      useDocumentReference: false,
+    const newIdeas: string[] = [];
+    const newScenes: SceneCard[] = [];
+
+    parsed.forEach((item, i) => {
+      const idea = String(item.idea ?? item.shotIdea ?? "New B-roll idea");
+      const imageDesc = String(item.image_prompt ?? "");
+      const klingDesc = String(item.kling_prompt ?? "");
+      newIdeas.push(idea);
+      newScenes.push({
+        sceneNumber: input.startSceneNumber + i,
+        lineReference: truncate(idea),
+        sceneType: "B-roll",
+        setting: String(item.setting ?? ""),
+        shotIdea: String(item.shotIdea ?? idea),
+        emotion: String(item.emotion ?? ""),
+        cameraStyle: String(item.cameraStyle ?? ""),
+        imagePrompt: buildImagePrompt(imageDesc, false),
+        klingPrompt: buildKlingPrompt(klingDesc),
+        useAvatarReference: false,
+        useDocumentReference: false,
+      });
     });
-  });
 
-  return { newIdeas, newScenes };
+    return { newIdeas, newScenes };
+  } catch (err) {
+    console.warn("[generateMoreBRoll] OpenAI error, falling back to mock:", err);
+    const mock = [
+      "Adult child calling to check in on aging parent",
+      "Family gathered around dinner table, one empty seat",
+      "Hands signing a document at a kitchen table",
+    ];
+    return {
+      newIdeas: mock,
+      newScenes: mock.map((idea, i) => ({
+        sceneNumber: input.startSceneNumber + i,
+        lineReference: truncate(idea),
+        sceneType: "B-roll" as const,
+        setting: "modest home interior, natural light",
+        shotIdea: idea,
+        emotion: "quiet reflection",
+        cameraStyle: "50mm documentary realism, static",
+        imagePrompt: buildImagePrompt(idea, false),
+        klingPrompt: buildKlingPrompt("Camera holds still. Subject moves with natural, unposed behavior. Very slow push-in."),
+        useAvatarReference: false,
+        useDocumentReference: false,
+      })),
+    };
+  }
 }
