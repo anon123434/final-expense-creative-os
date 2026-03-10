@@ -1,39 +1,63 @@
 import { notFound } from "next/navigation";
-import { LayoutDashboard } from "lucide-react";
-import { TabPlaceholder } from "@/components/campaign/tab-placeholder";
 import { getCampaignById, getTriggersByCampaign } from "@/lib/repositories/campaign-repo";
+import { getAvatarById } from "@/lib/repositories/avatar-repo";
+import { getConceptsByCampaign } from "@/lib/repositories/concept-repo";
+import { getScriptsByCampaign } from "@/lib/repositories/script-repo";
+import { getVoScriptsByCampaign } from "@/lib/repositories/voiceover-repo";
+import { getVisualPlansByCampaign } from "@/lib/repositories/visual-plan-repo";
+import { getPromptsByCampaign } from "@/lib/repositories/prompt-repo";
+import { getVersionsByCampaign } from "@/lib/repositories/version-repo";
+import { getVariationsByCampaign } from "@/lib/repositories/variation-repo";
 import { getPersonaByKey } from "@/lib/seed/personas";
 import { getArchetypeByKey } from "@/lib/seed/archetypes";
 import { getToneByKey } from "@/lib/seed/tones";
 import { getTriggerByKey } from "@/lib/seed/triggers";
-import { getAvatarById } from "@/lib/repositories/avatar-repo";
-import { AvatarSection } from "@/components/avatars/avatar-section";
+import { AvatarHero } from "@/components/campaign/overview/avatar-hero";
+import { PipelineGrid } from "@/components/campaign/overview/pipeline-grid";
+import type { PipelineStage } from "@/components/campaign/overview/pipeline-grid";
+import { Check, X } from "lucide-react";
 
 interface OverviewPageProps {
   params: Promise<{ id: string }>;
 }
 
-function DetailRow({ label, value }: { label: string; value: string | null | undefined }) {
-  if (!value) return null;
-  return (
-    <div className="flex items-start gap-3 border-b px-4 py-3 last:border-0">
-      <span className="w-44 shrink-0 text-sm text-muted-foreground">{label}</span>
-      <span className="text-sm">{value}</span>
-    </div>
-  );
+function stageStatus(
+  done: boolean,
+  prevDone: boolean,
+): "completed" | "active" | "locked" {
+  if (done) return "completed";
+  if (prevDone) return "active";
+  return "locked";
 }
 
 export default async function OverviewTab({ params }: OverviewPageProps) {
   const { id } = await params;
-  const [campaign, triggers] = await Promise.all([
+
+  const [
+    campaign,
+    triggers,
+    concepts,
+    scripts,
+    voScripts,
+    visualPlans,
+    prompts,
+    versions,
+    variations,
+  ] = await Promise.all([
     getCampaignById(id),
     getTriggersByCampaign(id),
+    getConceptsByCampaign(id),
+    getScriptsByCampaign(id),
+    getVoScriptsByCampaign(id),
+    getVisualPlansByCampaign(id),
+    getPromptsByCampaign(id),
+    getVersionsByCampaign(id),
+    getVariationsByCampaign(id),
   ]);
 
   if (!campaign) notFound();
 
   const avatar = campaign.avatarId ? await getAvatarById(campaign.avatarId) : null;
-
   const persona = campaign.personaId ? getPersonaByKey(campaign.personaId) : null;
   const archetype = campaign.archetypeId ? getArchetypeByKey(campaign.archetypeId) : null;
   const tone = campaign.emotionalTone ? getToneByKey(campaign.emotionalTone) : null;
@@ -45,118 +69,246 @@ export default async function OverviewTab({ params }: OverviewPageProps) {
     .filter((t) => !t.included)
     .map((t) => getTriggerByKey(t.triggerKey)?.label ?? t.triggerKey);
 
-  const hasAnyContent =
+  // Stage completion flags
+  const hasAvatar = !!campaign.avatarId;
+  const hasConcepts = concepts.length > 0;
+  const hasScript = scripts.length > 0;
+  const hasVoiceover = voScripts.length > 0;
+  const hasVisualPlan = visualPlans.length > 0;
+  const hasPrompts = prompts.length > 0;
+  const hasVersions = versions.length > 0;
+  const hasVariations = variations.length > 0;
+
+  const stages: PipelineStage[] = [
+    {
+      id: "avatar",
+      title: "Avatar",
+      description: "Generate your spokesperson",
+      iconName: "UserCircle",
+      status: stageStatus(hasAvatar, true),
+      href: "/avatars",
+    },
+    {
+      id: "concepts",
+      title: "Concepts",
+      description: "Develop creative concepts",
+      iconName: "Lightbulb",
+      status: stageStatus(hasConcepts, hasAvatar),
+      href: `/campaigns/${id}/concepts`,
+    },
+    {
+      id: "script",
+      title: "Script",
+      description: "Write and finalize script",
+      iconName: "FileText",
+      status: stageStatus(hasScript, hasConcepts),
+      href: `/campaigns/${id}/script`,
+    },
+    {
+      id: "elevenlabs",
+      title: "ElevenLabs",
+      description: "Generate AI voiceover",
+      iconName: "Mic",
+      status: stageStatus(hasVoiceover, hasScript),
+      href: `/campaigns/${id}/elevenlabs`,
+    },
+    {
+      id: "visual-plan",
+      title: "Visual Plan",
+      description: "Plan scenes and shots",
+      iconName: "Film",
+      status: stageStatus(hasVisualPlan, hasVoiceover),
+      href: `/campaigns/${id}/visual-plan`,
+    },
+    {
+      id: "prompts",
+      title: "Prompts",
+      description: "Generate image prompts",
+      iconName: "Sparkles",
+      status: stageStatus(hasPrompts, hasVisualPlan),
+      href: `/campaigns/${id}/prompts`,
+    },
+    {
+      id: "versions",
+      title: "Versions",
+      description: "Manage campaign versions",
+      iconName: "GitBranch",
+      status: stageStatus(hasVersions, hasPrompts),
+      href: `/campaigns/${id}/versions`,
+    },
+    {
+      id: "creative-lab",
+      title: "Creative Lab",
+      description: "Render final creative assets",
+      iconName: "Clapperboard",
+      status: stageStatus(hasVariations, hasVersions),
+      href: `/campaigns/${id}/creative-lab`,
+    },
+  ];
+
+  const completedCount = stages.filter((s) => s.status === "completed").length;
+
+  const hasBriefContent =
     persona ||
     archetype ||
     tone ||
     campaign.durationSeconds ||
+    campaign.offerName ||
     campaign.phoneNumber ||
     campaign.deadlineText ||
     campaign.benefitAmount ||
     campaign.affordabilityText ||
+    campaign.ctaStyle ||
     campaign.notes ||
     triggers.length > 0;
 
-  if (!hasAnyContent) {
-    return (
-      <TabPlaceholder
-        icon={LayoutDashboard}
-        title="Campaign overview"
-        description="Once you fill in your campaign brief, all details will appear here."
-        hint="Edit the campaign to add creative direction and production details."
-      />
-    );
-  }
-
   return (
-    <div className="mx-auto max-w-3xl space-y-8">
-      {/* Active Avatar */}
-      <AvatarSection campaignId={id} avatar={avatar} />
+    <div className="space-y-6">
+      {/* Hero avatar node */}
+      <AvatarHero
+        avatar={
+          avatar
+            ? { name: avatar.name, imageUrl: avatar.imageUrls[0] ?? null }
+            : null
+        }
+        completedCount={completedCount}
+        totalStages={stages.length}
+      />
 
-      {/* Creative Brief */}
-      {(persona || archetype || tone || campaign.durationSeconds || campaign.offerName) && (
-        <section className="space-y-2">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Creative Brief
-          </h2>
-          <div className="rounded-lg border">
-            <DetailRow label="Offer" value={campaign.offerName} />
-            <DetailRow label="Persona" value={persona?.label ?? campaign.personaId} />
-            <DetailRow
-              label="Archetype"
-              value={archetype ? `${archetype.label} — ${archetype.narrativeArc}` : campaign.archetypeId}
-            />
-            <DetailRow label="Tone" value={tone?.label ?? campaign.emotionalTone} />
-            <DetailRow
-              label="Duration"
-              value={campaign.durationSeconds ? `${campaign.durationSeconds} seconds` : null}
-            />
+      {/* Pipeline stage grid */}
+      <PipelineGrid stages={stages} />
+
+      {/* Campaign brief — compact, below pipeline */}
+      {hasBriefContent && (
+        <div className="pt-6">
+          <div className="mb-4 flex items-center gap-3">
+            <div className="h-px flex-1 bg-white/5" />
+            <p className="font-mono-data text-[9px] uppercase tracking-widest text-muted-foreground/60">
+              Campaign Brief
+            </p>
+            <div className="h-px flex-1 bg-white/5" />
           </div>
-        </section>
-      )}
 
-      {/* Production Details */}
-      {(campaign.phoneNumber || campaign.deadlineText || campaign.benefitAmount || campaign.affordabilityText || campaign.ctaStyle) && (
-        <section className="space-y-2">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Production Details
-          </h2>
-          <div className="rounded-lg border">
-            <DetailRow label="Phone Number" value={campaign.phoneNumber} />
-            <DetailRow label="Deadline" value={campaign.deadlineText} />
-            <DetailRow label="Benefit Amount" value={campaign.benefitAmount} />
-            <DetailRow label="Affordability Anchor" value={campaign.affordabilityText} />
-            <DetailRow label="CTA Style" value={campaign.ctaStyle} />
-          </div>
-        </section>
-      )}
+          <div className="grid gap-3 sm:grid-cols-2">
+            {/* Creative */}
+            {(persona || archetype || tone || campaign.durationSeconds || campaign.offerName) && (
+              <BriefCard label="Creative">
+                {campaign.offerName && (
+                  <BriefRow label="Offer" value={campaign.offerName} />
+                )}
+                {persona && <BriefRow label="Persona" value={persona.label} />}
+                {archetype && (
+                  <BriefRow label="Archetype" value={archetype.label} />
+                )}
+                {tone && <BriefRow label="Tone" value={tone.label} />}
+                {campaign.durationSeconds && (
+                  <BriefRow
+                    label="Duration"
+                    value={`${campaign.durationSeconds}s`}
+                  />
+                )}
+              </BriefCard>
+            )}
 
-      {/* Triggers */}
-      {triggers.length > 0 && (
-        <section className="space-y-2">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Psychological Triggers
-          </h2>
-          <div className="space-y-2">
-            {includedTriggers.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {includedTriggers.map((label) => (
-                  <span
-                    key={label}
-                    className="inline-flex items-center rounded-full border border-emerald-500 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700"
-                  >
-                    ✓ {label}
-                  </span>
-                ))}
+            {/* Production */}
+            {(campaign.phoneNumber ||
+              campaign.deadlineText ||
+              campaign.benefitAmount ||
+              campaign.affordabilityText ||
+              campaign.ctaStyle) && (
+              <BriefCard label="Production">
+                {campaign.phoneNumber && (
+                  <BriefRow label="Phone" value={campaign.phoneNumber} />
+                )}
+                {campaign.deadlineText && (
+                  <BriefRow label="Deadline" value={campaign.deadlineText} />
+                )}
+                {campaign.benefitAmount && (
+                  <BriefRow label="Benefit" value={campaign.benefitAmount} />
+                )}
+                {campaign.affordabilityText && (
+                  <BriefRow
+                    label="Affordability"
+                    value={campaign.affordabilityText}
+                  />
+                )}
+                {campaign.ctaStyle && (
+                  <BriefRow label="CTA" value={campaign.ctaStyle} />
+                )}
+              </BriefCard>
+            )}
+
+            {/* Triggers */}
+            {triggers.length > 0 && (
+              <div className="rounded-xl border border-white/6 bg-[#0d0d0d] px-4 py-3 sm:col-span-2">
+                <p className="mb-2.5 font-mono-data text-[9px] uppercase tracking-widest text-muted-foreground/60">
+                  Triggers
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {includedTriggers.map((label) => (
+                    <span
+                      key={label}
+                      className="inline-flex items-center gap-1 rounded-full border border-[#00E676]/25 bg-[#00E676]/8 px-2 py-0.5 font-mono-data text-[10px] text-[#00E676]"
+                    >
+                      <Check className="h-2.5 w-2.5" strokeWidth={2.5} />
+                      {label}
+                    </span>
+                  ))}
+                  {excludedTriggers.map((label) => (
+                    <span
+                      key={label}
+                      className="inline-flex items-center gap-1 rounded-full border border-white/8 bg-white/4 px-2 py-0.5 font-mono-data text-[10px] text-muted-foreground/40 line-through"
+                    >
+                      <X className="h-2.5 w-2.5" strokeWidth={2} />
+                      {label}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
-            {excludedTriggers.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {excludedTriggers.map((label) => (
-                  <span
-                    key={label}
-                    className="inline-flex items-center rounded-full border border-destructive/50 bg-destructive/5 px-2.5 py-0.5 text-xs font-semibold text-destructive"
-                  >
-                    ✕ {label}
-                  </span>
-                ))}
+
+            {/* Notes */}
+            {campaign.notes && (
+              <div className="rounded-xl border border-white/6 bg-[#0d0d0d] px-4 py-3 sm:col-span-2">
+                <p className="mb-2 font-mono-data text-[9px] uppercase tracking-widest text-muted-foreground/60">
+                  Notes
+                </p>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  {campaign.notes}
+                </p>
               </div>
             )}
           </div>
-        </section>
+        </div>
       )}
+    </div>
+  );
+}
 
-      {/* Notes */}
-      {campaign.notes && (
-        <section className="space-y-2">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Notes
-          </h2>
-          <div className="rounded-lg border px-4 py-3 text-sm text-muted-foreground">
-            {campaign.notes}
-          </div>
-        </section>
-      )}
+function BriefCard({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-xl border border-white/6 bg-[#0d0d0d] px-4 py-3">
+      <p className="mb-2.5 font-mono-data text-[9px] uppercase tracking-widest text-muted-foreground/60">
+        {label}
+      </p>
+      <div className="space-y-1.5">{children}</div>
+    </div>
+  );
+}
+
+function BriefRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-baseline gap-3">
+      <span className="w-20 shrink-0 font-mono-data text-[9px] uppercase tracking-wider text-muted-foreground/50">
+        {label}
+      </span>
+      <span className="text-[13px] text-foreground/75">{value}</span>
     </div>
   );
 }
