@@ -320,16 +320,19 @@ function parseVisualPlanResponse(text: string): GeneratedVisualPlan {
       imagePrompt: buildImagePrompt(rawImage, sceneType === "A-roll"),
       klingPrompt: buildKlingPrompt(rawKling),
       useAvatarReference: sceneType === "A-roll" || isPhoneListeningScene(combinedText) || isDocScene,
-      useDocumentReference: sceneType === "B-roll",
+      useDocumentReference: isDocScene,
     };
   });
+
+  const nextNumber = scenes.length > 0 ? scenes[scenes.length - 1].sceneNumber + 1 : scenes.length + 1;
+  const allScenes = [...scenes, ...buildDocumentScenes(nextNumber, "")];
 
   return {
     overallDirection: String(parsed.overallDirection ?? ""),
     baseLayer: String(parsed.baseLayer ?? ""),
     aRollIdeas: Array.isArray(parsed.aRollIdeas) ? parsed.aRollIdeas.map(String) : [],
     bRollIdeas: Array.isArray(parsed.bRollIdeas) ? parsed.bRollIdeas.map(String) : [],
-    scenes,
+    scenes: allScenes,
   };
 }
 
@@ -452,7 +455,7 @@ function mockVisualPlan(input: GenerateVisualPlanInput): GeneratedVisualPlan {
       ),
       klingPrompt: buildKlingPrompt(tmpl.klingSuffix),
       useAvatarReference: tmpl.sceneType === "A-roll" || isPhoneListeningScene(tmplText) || isTmplDocScene,
-      useDocumentReference: tmpl.sceneType === "B-roll",
+      useDocumentReference: isTmplDocScene,
     });
   });
 
@@ -474,6 +477,10 @@ function mockVisualPlan(input: GenerateVisualPlanInput): GeneratedVisualPlan {
     useAvatarReference: true,
   });
 
+  // Always append check and approval letter scenes
+  const docScenes = buildDocumentScenes(sceneNumber + 1, avatarPrefix);
+  scenes.push(...docScenes);
+
   return {
     overallDirection,
     baseLayer,
@@ -481,6 +488,47 @@ function mockVisualPlan(input: GenerateVisualPlanInput): GeneratedVisualPlan {
     bRollIdeas,
     scenes,
   };
+}
+
+// ── Document scenes (always appended) ────────────────────────────────────
+// The check and approval letter scenes are appended to every visual plan.
+// useDocumentReference: true signals the scene card to show the upload UI.
+
+function buildDocumentScenes(startNumber: number, avatarPrefix: string): SceneCard[] {
+  return [
+    {
+      sceneNumber: startNumber,
+      lineReference: "Receiving the benefit check",
+      sceneType: "B-roll",
+      setting: "kitchen table, warm afternoon light",
+      shotIdea: "avatar holds insurance benefit check, side profile, quiet disbelief and relief",
+      emotion: "quiet disbelief transitioning to acceptance, relief",
+      cameraStyle: "50mm medium shot, 3/4 angle, very slow push-in toward document",
+      imagePrompt: buildImagePrompt(
+        `${avatarPrefix}${CHECK_HOLDING_BEAT.imageDirection}`,
+        false
+      ),
+      klingPrompt: buildKlingPrompt(CHECK_HOLDING_BEAT.klingMotion),
+      useAvatarReference: true,
+      useDocumentReference: true,
+    },
+    {
+      sceneNumber: startNumber + 1,
+      lineReference: "Reading the approval letter",
+      sceneType: "B-roll",
+      setting: "living room, soft afternoon light",
+      shotIdea: "avatar reads approval letter confirming coverage, side profile, focused and still",
+      emotion: "focused reading transitioning to quiet acceptance",
+      cameraStyle: "50mm medium shot, 3/4 angle, very slow push-in toward document",
+      imagePrompt: buildImagePrompt(
+        `${avatarPrefix}${APPROVAL_LETTER_BEAT.imageDirection}`,
+        false
+      ),
+      klingPrompt: buildKlingPrompt(APPROVAL_LETTER_BEAT.klingMotion),
+      useAvatarReference: true,
+      useDocumentReference: true,
+    },
+  ];
 }
 
 // ── Public API ───────────────────────────────────────────────────────────
