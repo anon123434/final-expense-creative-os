@@ -8,7 +8,7 @@ import type { HookVariant } from "@/types/script";
 import type { ScriptTransform } from "@/lib/services/script-transforms";
 import { ConceptPicker } from "./concept-picker";
 import { QuickActions } from "./quick-actions";
-import { generateScriptAction, applyTransformAction, saveScriptAction, generateHookVariationsAction } from "@/app/actions/script";
+import { generateScriptAction, applyTransformAction, saveScriptAction, generateHookVariationsAction, applyHookAndRegenerateAction } from "@/app/actions/script";
 import { cn } from "@/lib/utils";
 import { ProviderBadge } from "@/components/ui/provider-badge";
 
@@ -62,8 +62,9 @@ export function ScriptPanel({
   const [transforming, startTransforming] = useTransition();
   const [saving, startSaving] = useTransition();
   const [generatingHooks, startGeneratingHooks] = useTransition();
+  const [applyingHook, startApplyingHook] = useTransition();
 
-  const loading = generating || transforming || saving;
+  const loading = generating || transforming || saving || applyingHook;
 
   function handleConceptChange(id: string) {
     setConceptId(id);
@@ -152,17 +153,30 @@ export function ScriptPanel({
   }
 
   function handleUseHook(newHook: string, index: number) {
-    const { body, cta } = parseFullScript(fullScript);
-    setFullScript([newHook, body, cta].filter(Boolean).join("\n\n"));
-    setIsDirty(true);
-    setSaveStatus("idle");
-    // Button feedback
+    if (!conceptId) return;
     setUsedHookIndex(index);
-    setTimeout(() => setUsedHookIndex(null), 1500);
-    // Scroll to textarea and flash it
-    scriptTextareaRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-    setScriptFlash(true);
-    setTimeout(() => setScriptFlash(false), 1000);
+    setError(null);
+    setSaveStatus("idle");
+    startApplyingHook(async () => {
+      const result = await applyHookAndRegenerateAction(campaign.id, conceptId, newHook, duration);
+      if (result.success) {
+        setFullScript(scriptToFull(result.script));
+        setTaggedScript(result.taggedScript ?? "");
+        setHasScript(true);
+        setIsDirty(false);
+        setGenStatus({ scriptProvider: result.scriptProvider, voProvider: result.voProvider });
+        setHookLabOpen(false);
+        // Scroll to textarea and flash it
+        setTimeout(() => {
+          scriptTextareaRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 100);
+        setScriptFlash(true);
+        setTimeout(() => setScriptFlash(false), 1200);
+      } else {
+        setError(result.error);
+      }
+      setUsedHookIndex(null);
+    });
   }
 
   return (
@@ -377,14 +391,18 @@ export function ScriptPanel({
                           <button
                             type="button"
                             onClick={() => handleUseHook(v.hook, i)}
+                            disabled={applyingHook || loading}
                             className={cn(
-                              "shrink-0 inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium whitespace-nowrap transition-colors",
-                              usedHookIndex === i
-                                ? "bg-[#00E676] text-black"
+                              "shrink-0 inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium whitespace-nowrap transition-colors",
+                              "disabled:cursor-not-allowed disabled:opacity-60",
+                              usedHookIndex === i && applyingHook
+                                ? "bg-muted text-muted-foreground border border-border"
                                 : "bg-primary text-primary-foreground hover:bg-primary/90"
                             )}
                           >
-                            {usedHookIndex === i ? <><Check className="h-3 w-3" /> Applied</> : "Use →"}
+                            {usedHookIndex === i && applyingHook
+                              ? <><Sparkles className="h-3 w-3 animate-pulse" /> Generating…</>
+                              : "Use →"}
                           </button>
                         </div>
                         {v.visualMoments.length > 0 && (

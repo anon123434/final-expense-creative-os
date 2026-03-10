@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getCampaignById, getTriggersByCampaign } from "@/lib/repositories/campaign-repo";
 import { getConceptsByCampaign } from "@/lib/repositories/concept-repo";
 import { upsertScript } from "@/lib/repositories/script-repo";
-import { generateScript, generateHookVariations } from "@/lib/services/script-generator";
+import { generateScript, generateHookVariations, generateScriptFromHook } from "@/lib/services/script-generator";
 import { buildTriggerSequence } from "@/lib/services/trigger-sequencer";
 import { generateVOScript } from "@/lib/services/vo-script-generator";
 import { applyTransform } from "@/lib/services/script-transforms";
@@ -115,6 +115,62 @@ export async function applyTransformAction(
   } catch (err) {
     console.error("applyTransformAction:", err);
     return actionFail(err, "Failed to apply transform.");
+  }
+}
+
+// ── Apply hook + regenerate full script ────────────────────────────────────
+
+export async function applyHookAndRegenerateAction(
+  campaignId: string,
+  conceptId: string,
+  hook: string,
+  durationSeconds: number = 30
+): Promise<{ success: true; script: Script; taggedScript: string; scriptProvider: string; voProvider: string } | FailResult> {
+  try {
+    await loadUserKeys();
+    const [campaign, concepts] = await Promise.all([
+      getCampaignById(campaignId),
+      getConceptsByCampaign(campaignId),
+    ]);
+    if (!campaign) return actionFail(null, "Campaign not found.");
+    const concept = concepts.find((c) => c.id === conceptId);
+    if (!concept) return actionFail(null, "Concept not found.");
+
+    const generated = await generateScriptFromHook({ campaign, concept, hook, durationSeconds });
+
+    let taggedScript = "";
+    let voProvider = "none";
+    try {
+      const vo = await generateVOScript({
+        campaign,
+        hook: generated.hook,
+        body: generated.body,
+        cta: generated.cta,
+      });
+      taggedScript = vo.taggedScript;
+      voProvider = vo.provider ?? "mock";
+    } catch {
+      // Non-fatal
+    }
+
+    const script = await upsertScript({
+      campaignId,
+      conceptId,
+      versionName: generated.versionName,
+      hook: generated.hook,
+      body: generated.body,
+      cta: generated.cta,
+      fullScript: generated.fullScript,
+      durationSeconds: generated.durationSeconds,
+      metadata: generated.metadata,
+    });
+
+    const scriptProvider = String(generated.metadata?.provider ?? "mock");
+    revalidatePath(`/campaigns/${campaignId}/script`);
+    return { success: true, script, taggedScript, scriptProvider, voProvider };
+  } catch (err) {
+    console.error("applyHookAndRegenerateAction:", err);
+    return actionFail(err, "Failed to regenerate script from hook.");
   }
 }
 

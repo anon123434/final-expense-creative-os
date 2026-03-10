@@ -201,7 +201,7 @@ Return a JSON object with these exact keys:
   "overallDirection": "2-3 sentence visual direction note covering tone, color palette, lighting approach, and pacing philosophy",
   "baseLayer": "1 sentence on footage sourcing strategy (stock + custom, text overlays, color grade)",
   "aRollIdeas": ["3-4 direct-to-camera or spokesperson ideas"],
-  "bRollIdeas": ["4-6 emotional cutaway / insert ideas"],
+  "bRollIdeas": ["4-6 visually striking, scroll-stopping ideas — think pattern interruption: check reveals, whispering crowds, hands holding bills or envelopes, faces in raw unguarded emotional micro-moments. Avoid generic cutaways."],
   "scenes": [
     {
       "sceneNumber": 1,
@@ -222,7 +222,7 @@ IMPORTANT RULES:
 - image_prompt: describe the subject, environment, framing, and lighting. DO NOT include "50mm", "documentary", "no watermarks", "16:9" — those are applied automatically by our pipeline.
 - kling_prompt: Use the cinematic director-technique format from the schema. Choose the director tag that best matches the scene's emotional tone (revelation = Spielberg, dread = Fincher, energy = Scorsese, dramatic reveal = Nolan, quiet weight = Villeneuve). Always include a Sound note at the end. DO NOT include "stabilized camera", "no shake", "50mm" — those are applied automatically.
 - A-roll scenes should note direct eye contact with camera.
-- B-roll scenes should feel observational and candid.
+- B-roll scenes should feel observational and candid. Prioritize SCROLL-STOPPING visual impact: check/envelope reveals, whispering crowds shot long-lens, hands holding financially weighted documents, faces caught in raw unguarded micro-expressions (disbelief → relief, silent grief, quiet shock). Avoid generic "hands on coffee mug" ideas.
 - Build an emotional arc across the scene sequence.
 - No markdown fences, no commentary — only valid JSON.
 

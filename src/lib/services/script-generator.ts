@@ -262,6 +262,123 @@ export async function generateScript(input: GenerateScriptInput): Promise<Genera
   return MOCK_VARIANTS[idx](input);
 }
 
+// ── Generate script from locked hook ─────────────────────────────────────
+
+export interface GenerateScriptFromHookInput {
+  campaign: Campaign;
+  concept: AdConcept;
+  hook: string;          // locked — written as-is into the output
+  durationSeconds?: number;
+}
+
+const FROM_HOOK_SYSTEM = `You are an elite direct-response advertising scriptwriter specialising in final expense / burial insurance ads.
+
+The opening HOOK has already been written and is LOCKED — you must copy it verbatim into the output without any changes.
+
+Your job: write the BODY and CTA sections that flow naturally and powerfully from the given hook.
+
+CRITICAL — OUTPUT FORMAT:
+Every word you write will be read aloud exactly as written. First-person direct-to-camera only.
+NEVER write stage directions, descriptions, or third-person narration.
+
+Body rules:
+- Start where the hook leaves off — the body must feel like a natural continuation of the same story/voice
+- Stack these triggers: Loss Aversion, Guilt Avoidance, Social Proof, Simplicity, Affordability ($2/day), Value Disparity ($2/day → large payout), Legitimacy
+- Short sentences. Real emotion. No corporate jargon.
+- Never say "insurance" — use "benefit", "coverage", "protection", "plan"
+- NEVER say "no medical exam", "no health check", "no physical" — use "two questions", "approved the same day"
+
+CTA rules:
+- Close with hard Urgency + Autonomy
+- Phone number appears ONCE (or TWICE for 90s with "Write that down." after first mention)
+
+Return a JSON object (no markdown fences, no commentary):
+{
+  "versionName": "short label reflecting the hook type",
+  "hook": "<copy the provided hook EXACTLY — do not change a single word>",
+  "body": "...",
+  "cta": "..."
+}`;
+
+export async function generateScriptFromHook(input: GenerateScriptFromHookInput): Promise<GeneratedScript> {
+  const duration = input.durationSeconds ?? 30;
+  const guide = DURATION_GUIDE[duration] ?? DURATION_GUIDE[30];
+
+  if (!isProviderConfigured("generateScript")) {
+    await new Promise((r) => setTimeout(r, 900));
+    const { campaign, concept, hook } = input;
+    const phone = campaign.phoneNumber ?? "1-800-555-0100";
+    const benefit = campaign.benefitAmount ?? "$25,000";
+    const affordability = campaign.affordabilityText ?? "less than two dollars a day";
+    const deadline = campaign.deadlineText ?? "this Friday";
+    const body = [
+      concept.emotionalSetup ?? `There's a ${benefit} final expense benefit most Americans over fifty never find out about.`,
+      concept.conflict ?? "When a loved one passes, the bills come immediately. Most families aren't ready.",
+      concept.solution ?? "I answered two questions and got approved the same day.",
+      `It costs ${affordability}. That's it. For ${benefit} in coverage.`,
+    ].join(" ");
+    const cta = `This closes ${deadline}. Call ${phone} right now — nobody is going to do this for you.`;
+    return {
+      versionName: "Hook-Anchored Script",
+      hook,
+      body,
+      cta,
+      fullScript: `${hook}\n\n${body}\n\n${cta}`,
+      durationSeconds: duration,
+      metadata: { provider: "mock", generatedAt: new Date().toISOString() },
+    };
+  }
+
+  const userPrompt = `Campaign:
+- Persona: ${input.campaign.personaId ?? "general"}
+- Emotional tone: ${input.campaign.emotionalTone ?? "empathetic"}
+- Phone: ${input.campaign.phoneNumber ?? "1-800-555-0100"}
+- Benefit: ${input.campaign.benefitAmount ?? "$25,000"}
+- Affordability: ${input.campaign.affordabilityText ?? "less than a dollar a day"}
+- Deadline: ${input.campaign.deadlineText ?? "this month"}
+
+DURATION TARGET: ${duration} seconds
+WORD COUNT TARGET: ~${guide.words} words total
+  - hook: already written (copy verbatim)
+  - body: ${guide.bodySentences} sentences
+  - cta:  ${guide.ctaSentences} sentences
+
+Concept: "${input.concept.title}"
+- Angle: ${input.concept.oneSentenceAngle ?? ""}
+- Emotional setup: ${input.concept.emotionalSetup ?? ""}
+- Conflict: ${input.concept.conflict ?? ""}
+- Solution: ${input.concept.solution ?? ""}
+- Payoff: ${input.concept.payoff ?? ""}
+- CTA direction: ${input.concept.cta ?? ""}
+
+LOCKED HOOK (copy this verbatim — do not change a word):
+"${input.hook}"
+
+Write the body and CTA now. Return JSON only.`;
+
+  const provider = getProvider("generateScript");
+  const result = await provider.generate({
+    system: FROM_HOOK_SYSTEM,
+    prompt: userPrompt,
+    temperature: 0.7,
+  });
+
+  const trimmed = result.text.trim().replace(/^```json?\s*/i, "").replace(/```\s*$/, "");
+  const parsed = JSON.parse(trimmed);
+  const hook = String(parsed.hook ?? input.hook); // fallback to locked hook if Claude omits
+  const body = String(parsed.body ?? "");
+  const cta = String(parsed.cta ?? "");
+  return {
+    versionName: String(parsed.versionName ?? "Hook-Anchored Script"),
+    hook,
+    body,
+    cta,
+    fullScript: `${hook}\n\n${body}\n\n${cta}`,
+    durationSeconds: duration,
+    metadata: { provider: "claude", hookLocked: true, generatedAt: new Date().toISOString() },
+  };
+}
+
 // ── Hook Variation Generator ──────────────────────────────────────────────
 
 export interface GenerateHookVariationsInput {
