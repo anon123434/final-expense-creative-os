@@ -14,7 +14,7 @@
 
 import type { Campaign } from "@/types";
 import type { SceneCard } from "@/types/scene";
-import { buildImagePrompt, buildKlingPrompt, PHONE_LISTENING_BEAT } from "./prompt-style-guide";
+import { buildImagePrompt, buildKlingPrompt, PHONE_LISTENING_BEAT, isPhoneListeningScene } from "./prompt-style-guide";
 import { generateTextWithOpenAI, isProviderConfigured } from "@/lib/llm";
 
 // ── Service types ──────────────────────────────────────────────────────────
@@ -139,7 +139,7 @@ const BODY_TEMPLATES: SceneTemplate[] = [
     shotIdea: "avatar on phone, listening to agent explain coverage — relief washing over their face",
     emotion: "relief, hope, resolution",
     cameraStyle: "50mm medium shot, slow push-in on face",
-    imageSuffix: PHONE_LISTENING_BEAT.imageDirection,
+    imageSuffix: `Medium close-up of person holding a phone to their ear, listening attentively. ${PHONE_LISTENING_BEAT.imageDirection}`,
     klingSuffix: PHONE_LISTENING_BEAT.klingMotion,
   },
 ];
@@ -194,11 +194,13 @@ IMPORTANT RULES:
 - No markdown fences, no commentary — only valid JSON.
 
 PHONE LISTENING BEAT (apply automatically):
-- Whenever a scene involves the avatar or spokesperson on a phone call where the other party is speaking, apply the following performance direction verbatim in both image_prompt and kling_prompt:
-  IMAGE: "Avatar on phone, listening attentively. Phone held naturally to ear. Expression: quiet focus, slight attentive lean, eyes soft and present. No speaking — mid-listen. Subtle suggestion of relief beginning to show."
-  KLING: "Avatar listens in silence as the other person speaks. Performance arc: attentive stillness → one or two small slow nods → tiny natural facial reactions showing understanding → quiet agreement. Near the end: expression softens noticeably — a subtle exhale, slight shoulder release, or small relaxing gesture signals relief. All movement minimal and involuntary-feeling. Very slow push-in on face."
-- This beat applies to B-roll scenes where the subject is receiving good news, hearing an agent explain coverage, or experiencing any phone-based relief moment.
-- Always keep this beat as B-roll (sceneType: "B-roll") since it is observational and candid.
+- Whenever a scene involves the avatar or spokesperson on a phone call where the other party is speaking, apply the following rules:
+  1. sceneType MUST be "B-roll".
+  2. The image_prompt MUST begin with the character (person holding the phone) as the primary subject — NOT the room, NOT objects in the room. Start with: "Medium close-up of [person description] holding a phone to their ear, listening attentively."
+  3. Then append the full performance direction verbatim: "Expression: quiet focus, slight attentive lean, eyes soft and present. No speaking — mid-listen. Subtle suggestion of relief beginning to show. Phone held naturally to ear. Warm interior light."
+  4. The kling_prompt MUST describe this full performance arc verbatim: "Avatar listens in silence as the other person speaks. Performance arc: attentive stillness → one or two small slow nods → tiny natural facial reactions showing understanding → quiet agreement. Near the end: expression softens noticeably — a subtle exhale, slight shoulder release, or small relaxing gesture signals relief. All movement minimal and involuntary-feeling. Very slow push-in on face."
+- CRITICAL: The image_prompt must show the PERSON on the phone — never a coffee cup, kitchen counter, or empty room. The character's face and the phone are the subject.
+- This beat applies to any scene where the subject receives good news, hears an agent explain coverage, or experiences any phone-based relief moment.
 
 AVATAR LIKENESS RULES (when an avatar description is provided):
 - Every A-roll image_prompt MUST begin with the exact avatar description verbatim, followed by the scene details.
@@ -278,7 +280,7 @@ function parseVisualPlanResponse(text: string): GeneratedVisualPlan {
       cameraStyle: String(s.cameraStyle ?? ""),
       imagePrompt: buildImagePrompt(rawImage, sceneType === "A-roll"),
       klingPrompt: buildKlingPrompt(rawKling),
-      useAvatarReference: sceneType === "A-roll",
+      useAvatarReference: sceneType === "A-roll" || isPhoneListeningScene(rawImage + " " + String(s.shotIdea ?? "")),
     };
   });
 
@@ -407,7 +409,7 @@ function mockVisualPlan(input: GenerateVisualPlanInput): GeneratedVisualPlan {
         tmpl.sceneType === "A-roll"
       ),
       klingPrompt: buildKlingPrompt(tmpl.klingSuffix),
-      useAvatarReference: tmpl.sceneType === "A-roll",
+      useAvatarReference: tmpl.sceneType === "A-roll" || isPhoneListeningScene(tmpl.shotIdea + " " + tmpl.imageSuffix),
     });
   });
 
