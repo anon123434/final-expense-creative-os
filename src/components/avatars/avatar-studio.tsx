@@ -4,7 +4,7 @@ import { useState, useTransition, useEffect, useRef } from "react";
 import { AvatarControls } from "./avatar-controls";
 import { AvatarResults } from "./avatar-results";
 import { AvatarLibrary } from "./avatar-library";
-import { generateAvatarAction } from "@/app/actions/avatars";
+import { generateAvatarAction, renameAvatarAction } from "@/app/actions/avatars";
 import type { Avatar, AvatarMode, AspectRatio } from "@/types/avatar";
 
 interface AvatarStudioProps {
@@ -76,7 +76,12 @@ export function AvatarStudio({ initialAvatars }: AvatarStudioProps) {
 
   function handleSave() {
     if (!generatedAvatar || !pendingName.trim()) return;
+    const avatarId = generatedAvatar.id;
+    const name = pendingName.trim();
     startSaving(async () => {
+      await renameAvatarAction(avatarId, name);
+      // Update name in local library list
+      setAvatars((prev) => prev.map((a) => a.id === avatarId ? { ...a, name } : a));
       setGeneratedAvatar(null);
       setPendingName("");
     });

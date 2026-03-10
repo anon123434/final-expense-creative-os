@@ -1,12 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createAvatar, getAvatarsByUser, deleteAvatar, attachAvatarToCampaign, updateAvatarImages } from "@/lib/repositories/avatar-repo";
+import { createAvatar, getAvatarsByUser, deleteAvatar, attachAvatarToCampaign, updateAvatarImages, renameAvatar } from "@/lib/repositories/avatar-repo";
 import { generateAvatar } from "@/lib/services/avatar-generator";
 import { actionFail, actionOk, type ActionResult } from "@/lib/result";
 import type { Avatar } from "@/types/avatar";
 import type { AvatarMode, AspectRatio } from "@/types/avatar";
 import { loadUserKeys } from "./_load-keys";
+import { hasSupabaseEnv, getSupabaseServiceRoleKey } from "@/lib/config/env";
 
 async function getCurrentUserId(): Promise<string> {
   try {
@@ -30,6 +31,12 @@ export async function generateAvatarAction(input: {
 }): Promise<ActionResult<{ avatar: Avatar; usedMock: boolean }>> {
   try {
     await loadUserKeys();
+
+    // Check for service role key when Supabase is configured (anon key cannot bypass RLS)
+    if (hasSupabaseEnv() && !getSupabaseServiceRoleKey()) {
+      return actionFail(null, "SUPABASE_SERVICE_ROLE_KEY is not set. Add it to your environment variables so avatars can be saved to the database.");
+    }
+
     const userId = await getCurrentUserId();
 
     const avatar = await createAvatar({
@@ -54,6 +61,13 @@ export async function generateAvatarAction(input: {
       .filter((img): img is { index: number; label: string; base64: string; mimeType: string } => "base64" in img)
       .map((img) => img.base64);
 
+    if (imageUrls.length === 0) {
+      const errors = result.images
+        .filter((img): img is { index: number; label: string; error: string } => "error" in img)
+        .map((img) => img.error);
+      return actionFail(null, `Image generation failed: ${errors[0] ?? "unknown error"}`);
+    }
+
     await updateAvatarImages(avatar.id, imageUrls);
 
     const updatedAvatar: Avatar = { ...avatar, imageUrls, expandedPrompt: result.expandedPrompts[0] ?? null };
@@ -75,6 +89,18 @@ export async function getAvatarsAction(): Promise<ActionResult<Avatar[]>> {
     return actionOk(avatars);
   } catch (err) {
     return actionFail(err, "Failed to load avatars.");
+  }
+}
+
+// ── Rename ──────────────────────────────────────────────────────────────────
+
+export async function renameAvatarAction(avatarId: string, name: string): Promise<ActionResult<null>> {
+  try {
+    await renameAvatar(avatarId, name);
+    revalidatePath("/avatars");
+    return actionOk(null);
+  } catch (err) {
+    return actionFail(err, "Failed to rename avatar.");
   }
 }
 

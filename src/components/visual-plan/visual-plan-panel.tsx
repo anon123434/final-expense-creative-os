@@ -29,7 +29,6 @@ export function VisualPlanPanel({
 }: VisualPlanPanelProps) {
   const [avatar, setAvatar] = useState<Avatar | null>(initialAvatar ?? null);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const avatarImageUrls = avatar?.imageUrls ?? null;
   const [scriptId, setScriptId] = useState<string | null>(initialScriptId);
   const [plan, setPlan] = useState<VisualPlan | null>(initialPlan);
 
@@ -255,7 +254,7 @@ export function VisualPlanPanel({
                   scene={scene}
                   onChange={handleSceneChange}
                   campaignId={campaignId}
-                  avatarImageUrls={avatarImageUrls}
+                  avatarId={avatar?.id ?? null}
                 />
               ))}
             </div>

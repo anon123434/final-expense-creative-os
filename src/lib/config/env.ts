@@ -51,6 +51,12 @@ export function getSupabaseAnonKey(): string | undefined {
   ]);
 }
 
+export function getSupabaseServiceRoleKey(): string | undefined {
+  return readServerVar("SUPABASE_SERVICE_ROLE_KEY", [
+    "your-service-role-key-here",
+  ]);
+}
+
 export function hasSupabaseEnv(): boolean {
   return !!getSupabaseUrl() && !!getSupabaseAnonKey();
 }

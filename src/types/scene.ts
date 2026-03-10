@@ -12,6 +12,7 @@ export interface SceneCard {
   imagePrompt: string;  // NanoBanana-ready
   klingPrompt: string;  // Kling 3.0 image-to-video prompt
   generatedImageUrl?: string | null; // Gemini-generated still for this scene
+  useAvatarReference?: boolean; // Whether to pass avatar as reference image when generating (default: true for A-roll, false for B-roll)
 }
 
 // ── Visual plan ────────────────────────────────────────────────────────────

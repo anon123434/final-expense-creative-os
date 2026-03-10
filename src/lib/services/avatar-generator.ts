@@ -144,6 +144,7 @@ export async function generateAvatar(
         return { index, label: labels[index], base64: url, mimeType };
       } catch (err) {
         const message = err instanceof Error ? err.message : "Generation failed";
+        console.error(`Avatar image ${index} failed:`, message);
         return { index, label: labels[index], error: message };
       }
     })

@@ -195,17 +195,18 @@ IMPORTANT RULES:
 - Build an emotional arc across the scene sequence.
 - No markdown fences, no commentary — only valid JSON.
 
-AVATAR LIKENESS RULE (when an avatar description is provided):
+AVATAR LIKENESS RULES (when an avatar description is provided):
 - Every A-roll image_prompt MUST begin with the exact avatar description verbatim, followed by the scene details.
 - Every B-roll image_prompt that features a person who could be the spokesperson MUST also include the avatar description.
-- Maintain strict visual consistency of this person across all scenes they appear in.`;
+- Every B-roll scene that features family members, loved ones, friends, or other characters (grandchildren, spouses, adult children, etc.) MUST describe those characters as visually consistent with the avatar's family: same race and ethnicity, same skin tone, same general hair color and texture. Do NOT copy the avatar's exact face — they are family members who resemble the avatar, not clones. Use phrases like "same warm brown skin tone as the protagonist", "matching olive complexion", "same dark hair, clearly part of the same family".
+- Maintain strict visual and ethnic consistency across all human subjects throughout the full scene sequence.`;
 
 // ── Prompt builder ───────────────────────────────────────────────────────
 
 function buildVisualPlanPrompt(input: GenerateVisualPlanInput): string {
   const { campaign, hook, body, cta, avatarDescription } = input;
   const avatarSection = avatarDescription
-    ? `\nAvatar / Spokesperson likeness (use verbatim in every A-roll image_prompt):\n${avatarDescription}\n`
+    ? `\nAvatar / Spokesperson likeness:\n${avatarDescription}\nUse verbatim in every A-roll image_prompt. Extract race, skin tone, and hair traits to maintain family visual consistency in B-roll scenes featuring family members or loved ones.\n`
     : "";
   return `Campaign:
 - Persona: ${campaign.personaId ?? "general"}
@@ -272,6 +273,7 @@ function parseVisualPlanResponse(text: string): GeneratedVisualPlan {
       cameraStyle: String(s.cameraStyle ?? ""),
       imagePrompt: buildImagePrompt(rawImage, sceneType === "A-roll"),
       klingPrompt: buildKlingPrompt(rawKling),
+      useAvatarReference: sceneType === "A-roll",
     };
   });
 
@@ -284,12 +286,38 @@ function parseVisualPlanResponse(text: string): GeneratedVisualPlan {
   };
 }
 
+// ── Family resemblance helper ─────────────────────────────────────────────
+// Extracts race/skin/hair cues from an avatar description for B-roll family scenes.
+
+function buildFamilyResemblanceNote(avatarDescription: string | null | undefined): string {
+  if (!avatarDescription) return "";
+  // Look for common race/skin/hair phrases to surface as a family note
+  const lower = avatarDescription.toLowerCase();
+  const cues: string[] = [];
+  if (/dark\s*brown\s*skin|deep\s*brown\s*skin|ebony\s*skin|black\s*skin/i.test(avatarDescription)) cues.push("same deep brown skin tone");
+  else if (/medium\s*brown\s*skin|warm\s*brown\s*skin|caramel\s*skin|tan\s*skin/i.test(avatarDescription)) cues.push("same warm brown skin tone");
+  else if (/light\s*brown\s*skin|olive\s*skin|bronze\s*skin/i.test(avatarDescription)) cues.push("same olive complexion");
+  else if (/fair\s*skin|pale\s*skin|light\s*skin/i.test(avatarDescription)) cues.push("same fair complexion");
+  if (/black\s*hair/i.test(avatarDescription)) cues.push("same dark black hair");
+  else if (/dark\s*brown\s*hair/i.test(avatarDescription)) cues.push("same dark brown hair");
+  else if (/grey\s*hair|gray\s*hair|silver\s*hair|white\s*hair/i.test(avatarDescription)) cues.push("same grey hair");
+  else if (/blonde\s*hair|blond\s*hair/i.test(avatarDescription)) cues.push("same blonde hair");
+  if (/african\s*american|black\s*american/i.test(lower)) cues.push("African American family");
+  else if (/hispanic|latina|latino|mexican|puerto\s*rican/i.test(lower)) cues.push("Hispanic family");
+  else if (/asian|chinese|korean|japanese|vietnamese|filipino/i.test(lower)) cues.push("Asian family");
+  else if (/south\s*asian|indian|pakistani|bengali/i.test(lower)) cues.push("South Asian family");
+  else if (/middle\s*eastern|arab/i.test(lower)) cues.push("Middle Eastern family");
+  if (cues.length === 0) return "";
+  return `(family members share the protagonist's traits: ${cues.join(", ")})`;
+}
+
 // ── Mock implementation ────────────────────────────────────────────────────
 
 function mockVisualPlan(input: GenerateVisualPlanInput): GeneratedVisualPlan {
 
   const { campaign, hook, body, cta, avatarDescription } = input;
   const avatarPrefix = avatarDescription ? `${avatarDescription}. ` : "";
+  const familyNote = buildFamilyResemblanceNote(avatarDescription);
 
   const bodySentences = splitSentences(body);
 
@@ -343,10 +371,15 @@ function mockVisualPlan(input: GenerateVisualPlanInput): GeneratedVisualPlan {
     emotion: hookTemplate.emotion,
     cameraStyle: hookTemplate.cameraStyle,
     imagePrompt: buildImagePrompt(
-      `${hookTemplate.sceneType === "A-roll" ? avatarPrefix : ""}${hookTemplate.setting}. ${hookTemplate.imageSuffix}`,
+      hookTemplate.sceneType === "A-roll"
+        ? `${avatarPrefix}${hookTemplate.setting}. ${hookTemplate.imageSuffix}`
+        : familyNote
+          ? `${hookTemplate.setting}. ${hookTemplate.imageSuffix} ${familyNote}`
+          : `${hookTemplate.setting}. ${hookTemplate.imageSuffix}`,
       hookTemplate.sceneType === "A-roll"
     ),
     klingPrompt: buildKlingPrompt(hookTemplate.klingSuffix),
+    useAvatarReference: hookTemplate.sceneType === "A-roll",
   });
 
   // Body scenes — one per sentence, cycling through body templates
@@ -361,10 +394,15 @@ function mockVisualPlan(input: GenerateVisualPlanInput): GeneratedVisualPlan {
       emotion: tmpl.emotion,
       cameraStyle: tmpl.cameraStyle,
       imagePrompt: buildImagePrompt(
-        `${tmpl.sceneType === "A-roll" ? avatarPrefix : ""}${tmpl.setting}. ${tmpl.imageSuffix}`,
+        tmpl.sceneType === "A-roll"
+          ? `${avatarPrefix}${tmpl.setting}. ${tmpl.imageSuffix}`
+          : familyNote
+            ? `${tmpl.setting}. ${tmpl.imageSuffix} ${familyNote}`
+            : `${tmpl.setting}. ${tmpl.imageSuffix}`,
         tmpl.sceneType === "A-roll"
       ),
       klingPrompt: buildKlingPrompt(tmpl.klingSuffix),
+      useAvatarReference: tmpl.sceneType === "A-roll",
     });
   });
 
@@ -383,6 +421,7 @@ function mockVisualPlan(input: GenerateVisualPlanInput): GeneratedVisualPlan {
       true
     ),
     klingPrompt: buildKlingPrompt(CTA_TEMPLATE.klingSuffix),
+    useAvatarReference: true,
   });
 
   return {

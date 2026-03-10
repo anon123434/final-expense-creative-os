@@ -96,6 +96,16 @@ export async function uploadGeneratedImage(
     }
 
     const supabase = await getSupabaseServerClient();
+
+    // Ensure bucket exists — createBucket is a no-op if it already exists
+    const { error: bucketError } = await supabase.storage.createBucket("avatars", {
+      public: true,
+      fileSizeLimit: 10485760, // 10MB
+    });
+    if (bucketError && !bucketError.message.includes("already exists") && !bucketError.message.includes("duplicate")) {
+      console.warn("Could not ensure avatars bucket:", bucketError.message);
+    }
+
     const buffer = Buffer.from(base64, "base64");
 
     const { error } = await supabase.storage
@@ -103,13 +113,14 @@ export async function uploadGeneratedImage(
       .upload(storagePath, buffer, { contentType: "image/png", upsert: true });
 
     if (error) {
-      console.warn("Storage upload failed, using data URL:", error.message);
-      return `data:${mimeType};base64,${base64}`;
+      console.error("Storage upload failed:", error.message);
+      throw new Error(`Storage upload failed: ${error.message}`);
     }
 
     const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(storagePath);
     return publicUrl;
-  } catch {
-    return `data:${mimeType};base64,${base64}`;
+  } catch (err) {
+    // Re-throw so callers know storage failed — don't silently return huge data URLs
+    throw err;
   }
 }

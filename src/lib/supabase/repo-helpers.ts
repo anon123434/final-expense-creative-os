@@ -6,7 +6,7 @@
  * utilities — no side-effects beyond the dynamic import.
  */
 
-import { hasSupabaseEnv } from "@/lib/config/env";
+import { hasSupabaseEnv, getSupabaseUrl, getSupabaseServiceRoleKey } from "@/lib/config/env";
 
 /**
  * Returns true when Supabase environment variables are set and look valid.
@@ -17,11 +17,22 @@ export function hasSupabaseConfig(): boolean {
 }
 
 /**
- * Returns a server-side Supabase client.
- * Dynamically imported to keep `next/headers` out of any client bundle.
- * Only call this inside server components, server actions, or route handlers.
+ * Returns a service-role Supabase client that bypasses RLS.
+ * Use this for all server-side DB operations since the app doesn't use Supabase Auth.
+ * Falls back to cookie-based client if service role key is not set.
  */
 export async function getSupabaseServerClient() {
+  const url = getSupabaseUrl();
+  const serviceKey = getSupabaseServiceRoleKey();
+
+  if (url && serviceKey) {
+    const { createClient } = await import("@supabase/supabase-js");
+    return createClient(url, serviceKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+  }
+
+  // Fallback: cookie-based anon client (will fail RLS if not authenticated)
   const { createClient } = await import("@/lib/supabase/server");
   return createClient();
 }

@@ -71,7 +71,7 @@ export async function generateSceneImageAction(
   campaignId: string,
   sceneIndex: number,
   imagePrompt: string,
-  avatarImageUrls?: string[] | null
+  avatarId?: string | null
 ): Promise<ActionResult<{ url: string }>> {
   try {
     await loadUserKeys();
@@ -80,16 +80,23 @@ export async function generateSceneImageAction(
       return actionFail(null, "No Gemini API key configured. Add one in Settings.");
     }
 
-    // Fetch all avatar images as base64 references for character consistency
+    // Fetch avatar images server-side to avoid passing large base64 data from client
     const refImages: string[] = [];
-    if (avatarImageUrls?.length) {
+    if (avatarId) {
+      const avatar = await getAvatarById(avatarId);
+      const imageUrls = avatar?.imageUrls ?? [];
       await Promise.all(
-        avatarImageUrls.map(async (url) => {
+        imageUrls.map(async (url) => {
           try {
-            const res = await fetch(url);
-            const buf = await res.arrayBuffer();
-            const mimeType = res.headers.get("content-type") ?? "image/jpeg";
-            refImages.push(`data:${mimeType};base64,${Buffer.from(buf).toString("base64")}`);
+            // Data URLs are already base64 — use directly; otherwise fetch from URL
+            if (url.startsWith("data:")) {
+              refImages.push(url);
+            } else {
+              const res = await fetch(url);
+              const buf = await res.arrayBuffer();
+              const mimeType = res.headers.get("content-type") ?? "image/jpeg";
+              refImages.push(`data:${mimeType};base64,${Buffer.from(buf).toString("base64")}`);
+            }
           } catch {
             // Skip images that fail to fetch
           }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronUp, Copy, Check, Clapperboard, Camera, Sparkles, Download } from "lucide-react";
+import { ChevronDown, ChevronUp, Copy, Check, Clapperboard, Camera, Sparkles, Download, UserCircle } from "lucide-react";
 import type { SceneCard } from "@/types/scene";
 import { cn } from "@/lib/utils";
 import { generateSceneImageAction } from "@/app/actions/visual-plan";
@@ -10,15 +10,16 @@ interface SceneCardProps {
   scene: SceneCard;
   onChange: (updated: SceneCard) => void;
   campaignId: string;
-  avatarImageUrls?: string[] | null;
+  avatarId?: string | null;
 }
 
-type EditableField = keyof Omit<SceneCard, "sceneNumber" | "sceneType">;
+type EditableField = keyof Omit<SceneCard, "sceneNumber" | "sceneType" | "useAvatarReference" | "generatedImageUrl">;
 
-export function SceneCardItem({ scene, onChange, campaignId, avatarImageUrls }: SceneCardProps) {
+export function SceneCardItem({ scene, onChange, campaignId, avatarId }: SceneCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [generatingImage, setGeneratingImage] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
+  const [elapsed, setElapsed] = useState(0);
 
   function update(field: EditableField, value: string) {
     onChange({ ...scene, [field]: value });
@@ -32,12 +33,17 @@ export function SceneCardItem({ scene, onChange, campaignId, avatarImageUrls }: 
     if (!scene.imagePrompt || generatingImage) return;
     setGeneratingImage(true);
     setImageError(null);
+    setElapsed(0);
+    const start = Date.now();
+    const timer = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 500);
+    const useRef = scene.useAvatarReference !== false; // default true
     const result = await generateSceneImageAction(
       campaignId,
       scene.sceneNumber,
       scene.imagePrompt,
-      avatarImageUrls
+      useRef ? avatarId : null
     );
+    clearInterval(timer);
     setGeneratingImage(false);
     if (result.success) {
       onChange({ ...scene, generatedImageUrl: result.data.url });
@@ -89,6 +95,26 @@ export function SceneCardItem({ scene, onChange, campaignId, avatarImageUrls }: 
             </span>
           )}
         </span>
+
+        {/* Avatar reference indicator */}
+        {avatarId && (
+          <span
+            onClick={(e) => {
+              e.stopPropagation();
+              onChange({ ...scene, useAvatarReference: scene.useAvatarReference === false ? true : false });
+            }}
+            title={scene.useAvatarReference === false ? "Avatar reference off — click to enable" : "Avatar reference on — click to disable"}
+            className={cn(
+              "mt-0.5 shrink-0 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold cursor-pointer select-none transition-colors",
+              scene.useAvatarReference === false
+                ? "bg-muted text-muted-foreground border border-border"
+                : "bg-violet-50 text-violet-700 border border-violet-200"
+            )}
+          >
+            <UserCircle className="h-2.5 w-2.5" />
+            {scene.useAvatarReference === false ? "No avatar" : "Avatar ref"}
+          </span>
+        )}
 
         {/* Generated image thumbnail in header */}
         {scene.generatedImageUrl && !expanded && (
@@ -176,16 +202,32 @@ export function SceneCardItem({ scene, onChange, campaignId, avatarImageUrls }: 
                   <img
                     src={scene.generatedImageUrl}
                     alt={`Scene ${scene.sceneNumber}`}
-                    className="h-full w-full object-cover"
+                    className={cn("h-full w-full object-cover transition-opacity", generatingImage && "opacity-40")}
                   />
-                  <a
-                    href={scene.generatedImageUrl}
-                    download={`scene-${scene.sceneNumber}.jpg`}
-                    className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-md bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80"
-                    title="Download image"
-                  >
-                    <Download className="h-3.5 w-3.5" />
-                  </a>
+                  {generatingImage ? (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background/60 backdrop-blur-sm">
+                      <Sparkles className="h-5 w-5 animate-pulse text-violet-500" />
+                      <span className="text-xs font-medium text-violet-700">{elapsed}s</span>
+                      <div className="w-32 h-1 rounded-full bg-violet-100 overflow-hidden">
+                        <div
+                          className="h-full bg-violet-400 rounded-full"
+                          style={{
+                            width: `${Math.min(90, (elapsed / 30) * 90)}%`,
+                            transition: "width 0.5s ease-out",
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <a
+                      href={scene.generatedImageUrl}
+                      download={`scene-${scene.sceneNumber}.jpg`}
+                      className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-md bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80"
+                      title="Download image"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                    </a>
+                  )}
                 </div>
               </div>
             ) : (
@@ -198,15 +240,28 @@ export function SceneCardItem({ scene, onChange, campaignId, avatarImageUrls }: 
                   onClick={handleGenerateImage}
                   disabled={generatingImage || !scene.imagePrompt}
                   className={cn(
-                    "flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed py-4 text-sm font-medium transition-colors",
+                    "flex w-full flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed py-4 text-sm font-medium transition-colors overflow-hidden",
                     "border-violet-200 text-violet-600 hover:bg-violet-50/50 hover:border-violet-300",
                     "disabled:cursor-not-allowed disabled:opacity-50"
                   )}
                 >
-                  <Sparkles className={cn("h-4 w-4", generatingImage && "animate-pulse")} />
-                  {generatingImage ? "Generating image…" : "Generate Image"}
-                  {avatarImageUrls?.length && !generatingImage && (
-                    <span className="text-[10px] text-violet-400 font-normal">· using avatar reference</span>
+                  <span className="flex items-center gap-2">
+                    <Sparkles className={cn("h-4 w-4", generatingImage && "animate-pulse")} />
+                    {generatingImage ? `Generating image… ${elapsed}s` : "Generate Image"}
+                    {avatarId && !generatingImage && scene.useAvatarReference !== false && (
+                      <span className="text-[10px] text-violet-400 font-normal">· using avatar reference</span>
+                    )}
+                  </span>
+                  {generatingImage && (
+                    <div className="w-48 h-1 rounded-full bg-violet-100 overflow-hidden">
+                      <div
+                        className="h-full bg-violet-400 rounded-full"
+                        style={{
+                          width: `${Math.min(90, (elapsed / 30) * 90)}%`,
+                          transition: "width 0.5s ease-out",
+                        }}
+                      />
+                    </div>
                   )}
                 </button>
               </div>

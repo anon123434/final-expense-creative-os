@@ -47,7 +47,12 @@ export async function createAvatar(data: AvatarInsert): Promise<Avatar> {
       .single();
 
     if (!error && row) return toAvatar(row);
-    console.warn("Supabase createAvatar failed, using mock:", error?.message);
+
+    // Throw so the caller surfaces the real error rather than silently using mock
+    const hint = error?.message?.includes("JWTInvalidClaimsPath") || error?.code === "42501"
+      ? `${error.message} — Add SUPABASE_SERVICE_ROLE_KEY to your environment variables.`
+      : error?.message ?? "Unknown Supabase error";
+    throw new Error(`createAvatar failed: ${hint}`);
   }
 
   const row = {
@@ -71,10 +76,21 @@ export async function updateAvatarImages(id: string, imageUrls: string[]): Promi
     const supabase = await getSupabaseServerClient();
     const { error } = await supabase.from("avatars").update({ image_urls: imageUrls }).eq("id", id);
     if (!error) return;
-    console.warn("Supabase updateAvatarImages failed, updating mock:", error.message);
+    throw new Error(`updateAvatarImages failed: ${error.message}`);
   }
   const row = mockAvatarRows.find((r) => r.id === id);
   if (row) row.image_urls = imageUrls;
+}
+
+export async function renameAvatar(id: string, name: string): Promise<void> {
+  if (hasSupabaseConfig()) {
+    const supabase = await getSupabaseServerClient();
+    const { error } = await supabase.from("avatars").update({ name }).eq("id", id);
+    if (!error) return;
+    throw new Error(`renameAvatar failed: ${error.message}`);
+  }
+  const row = mockAvatarRows.find((r) => r.id === id);
+  if (row) row.name = name;
 }
 
 export async function deleteAvatar(id: string): Promise<void> {
