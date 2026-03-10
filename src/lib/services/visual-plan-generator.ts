@@ -227,6 +227,17 @@ IMPORTANT RULES:
 - Build an emotional arc across the scene sequence.
 - No markdown fences, no commentary — only valid JSON.
 
+HOOK VISUAL RULE (scene 1 — the most important scene):
+- The first scene (hook) must ALMOST ALWAYS be B-roll, not A-roll. In direct-response ads, the hook is spoken over a striking visual — not a talking head. The visual must create the "stop scrolling" moment.
+- Map the hook's emotional punch to a specific physical image:
+  • Hook about receiving unexpected money → close-up hands opening an envelope, edge of a check visible
+  • Hook about a funeral / death → widow or family at funeral home, 85mm long-lens crowd compression
+  • Hook about overhearing / whispering → crowd whispering behind hands, long lens, faces half-visible
+  • Hook about a deadline or financial threat → funeral director sliding a bill across a desk, close-up on the total
+  • Hook about insider knowledge → over-shoulder shot of someone leaning in to share a secret at a table
+- The hook B-roll image_prompt should be the single most cinematic, visually specific shot in the entire plan.
+- ONLY use A-roll for scene 1 if the hook is a pure direct address with no strong visual metaphor (rare).
+
 VARIETY MANDATE (critical — violations make the visual plan unusable):
 - NEVER place two A-roll scenes back to back. Always break consecutive A-roll with at least one B-roll between them.
 - A-roll MAXIMUM: no more than 40% of scenes should be A-roll. For a 7-scene plan, max 3 A-roll. Push the rest to creative B-roll.
