@@ -598,6 +598,7 @@ export async function generateMoreBRoll(
         imagePrompt: buildImagePrompt(idea, false),
         klingPrompt: buildKlingPrompt("Camera holds still. Subject moves with natural, unposed behavior. Very slow push-in."),
         useAvatarReference: false,
+        useDocumentReference: false,
       })),
     };
   }
