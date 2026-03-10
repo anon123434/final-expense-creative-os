@@ -125,7 +125,7 @@ export async function generateSceneImageAction(
     }
 
     const documentAnchor = documentImage
-      ? "CRITICAL: The document held by the person must exactly reproduce the document shown in the first reference image. Do not redesign, alter, paraphrase, or replace any part of its layout, header text, dollar amounts, fields, or graphics. Treat it as a photographic reproduction, not an illustration.\n\n"
+      ? "CRITICAL: The first image provided is the EXACT document that must appear in this scene. Reproduce it photographically — same layout, same header, same dollar amount, same fields, same logo, same design. Do not invent or redesign any part of it. The check or letter in the generated image must be visually identical to the reference document image. Treat it as ground truth, not inspiration.\n\n"
       : "";
     const identityNote = refImages.length > 0
       ? "\n\nIMPORTANT: Maintain the exact same face and identity from the reference image."

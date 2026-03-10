@@ -112,11 +112,13 @@ export const CHECK_HOLDING_BEAT = {
    * Append to sceneDescription before passing to buildImagePrompt().
    */
   imageDirection:
-    "Avatar holds a check with both hands, side profile, 3/4 angle. " +
-    "Document tilted slightly toward camera, filling 40–50% of frame. " +
-    "Avatar's shoulder and side profile visible at frame edge, face slightly soft-focused. " +
-    "Expression: quiet disbelief transitioning to acceptance — slight parting of lips, soft eyes. " +
-    "Warm interior light. Medium shot.",
+    "Over-the-shoulder shot from behind and slightly to the side. " +
+    "Camera is positioned behind the avatar — we see the back of their shoulder and the sharp side profile of their face (jaw, cheek, eye visible). " +
+    "The avatar holds a standard-sized paper check in both hands at natural arm distance — NOT oversized, realistic check proportions. " +
+    "The check faces the camera directly, clearly legible, with the dollar amount ($25,000) prominent and in sharp focus in the foreground. " +
+    "Avatar's face is in soft side-profile focus behind the check — present but secondary. " +
+    "Expression visible from the side: quiet disbelief transitioning to acceptance — slight parting of lips, soft eye. " +
+    "Warm interior light from the side. Medium shot.",
 
   /**
    * Kling motion: full arc from stunned stillness → exhale of relief.
