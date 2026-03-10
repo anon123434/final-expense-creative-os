@@ -7,7 +7,7 @@ import { getAvatarById } from "@/lib/repositories/avatar-repo";
 import { upsertVisualPlan } from "@/lib/repositories/visual-plan-repo";
 import { generateVisualPlan } from "@/lib/services/visual-plan-generator";
 import { generateSingleImage, uploadGeneratedImage } from "@/lib/services/gemini-image";
-import { hasGeminiKey } from "@/lib/config/env";
+import { hasGeminiKey, resolveHeyGenApiKey } from "@/lib/config/env";
 import type { FailResult } from "@/lib/result";
 import { actionFail, actionOk, type ActionResult } from "@/lib/result";
 import type { VisualPlan } from "@/types";
@@ -198,5 +198,85 @@ export async function uploadDocumentAssetAction(
   } catch (err) {
     console.error("uploadDocumentAssetAction:", err);
     return actionFail(err, "Failed to upload document asset.");
+  }
+}
+
+// ── HeyGen talking video ───────────────────────────────────────────────────
+
+export async function generateTalkingVideoAction(
+  campaignId: string,
+  sceneNumber: number,
+  imageUrl: string,        // Supabase URL of the generated still
+  audioBase64: string,     // base64-encoded audio file
+  audioMimeType: string    // e.g. "audio/mpeg" or "audio/wav"
+): Promise<ActionResult<{ videoId: string }>> {
+  try {
+    await loadUserKeys();
+    const apiKey = resolveHeyGenApiKey();
+    if (!apiKey) return actionFail(null, "No HeyGen API key configured. Add one in Settings.");
+
+    // 1. Fetch still image from Supabase and upload to HeyGen
+    const imgRes = await fetch(imageUrl);
+    if (!imgRes.ok) throw new Error(`Image fetch failed: ${imgRes.status}`);
+    const imgBuf = await imgRes.arrayBuffer();
+
+    const imgUpload = await fetch("https://upload.heygen.com/v1/asset", {
+      method: "POST",
+      headers: { "X-API-KEY": apiKey, "Content-Type": "image/jpeg" },
+      body: imgBuf,
+    });
+    const imgData = await imgUpload.json();
+    if (imgData.code !== 100) throw new Error(`HeyGen image upload failed: ${JSON.stringify(imgData)}`);
+    const talkingPhotoId: string = imgData.data.image_key;
+
+    // 2. Upload audio to HeyGen
+    const audioBuf = Buffer.from(audioBase64, "base64");
+    const audioUpload = await fetch("https://upload.heygen.com/v1/asset", {
+      method: "POST",
+      headers: { "X-API-KEY": apiKey, "Content-Type": audioMimeType },
+      body: audioBuf,
+    });
+    const audioData = await audioUpload.json();
+    if (audioData.code !== 100) throw new Error(`HeyGen audio upload failed: ${JSON.stringify(audioData)}`);
+    const audioAssetId: string = audioData.data.id;
+
+    // 3. Create Avatar IV video
+    const videoRes = await fetch("https://api.heygen.com/v2/video/av4/generate", {
+      method: "POST",
+      headers: { "X-API-KEY": apiKey, "Content-Type": "application/json" },
+      body: JSON.stringify({ talking_photo_id: talkingPhotoId, audio_asset_id: audioAssetId }),
+    });
+    const videoData = await videoRes.json();
+    if (videoData.code !== 100) throw new Error(`HeyGen video create failed: ${JSON.stringify(videoData)}`);
+
+    return actionOk({ videoId: videoData.data.video_id });
+  } catch (err) {
+    console.error("generateTalkingVideoAction:", err);
+    return actionFail(err, "Failed to start talking video generation.");
+  }
+}
+
+export async function checkVideoStatusAction(
+  videoId: string
+): Promise<ActionResult<{ status: string; videoUrl?: string }>> {
+  try {
+    await loadUserKeys();
+    const apiKey = resolveHeyGenApiKey();
+    if (!apiKey) return actionFail(null, "No HeyGen API key configured.");
+
+    const res = await fetch(
+      `https://api.heygen.com/v1/video_status.get?video_id=${videoId}`,
+      { headers: { "X-API-KEY": apiKey } }
+    );
+    const data = await res.json();
+    if (data.code !== 100) throw new Error(`HeyGen status check failed: ${JSON.stringify(data)}`);
+
+    return actionOk({
+      status: data.data.status,
+      videoUrl: data.data.video_url ?? undefined,
+    });
+  } catch (err) {
+    console.error("checkVideoStatusAction:", err);
+    return actionFail(err, "Failed to check video status.");
   }
 }

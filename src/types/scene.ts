@@ -15,6 +15,8 @@ export interface SceneCard {
   useAvatarReference?: boolean; // Whether to pass avatar as reference image when generating (default: true for A-roll, false for B-roll)
   documentReferenceUrl?: string | null; // User-uploaded document asset URL (check, approval letter, etc.)
   useDocumentReference?: boolean; // Whether this scene uses a document reference image (auto-set by beat detectors)
+  generatedVideoUrl?: string | null;  // Completed HeyGen talking video URL
+  videoJobId?: string | null;         // HeyGen video_id for polling
 }
 
 // ── Visual plan ────────────────────────────────────────────────────────────
