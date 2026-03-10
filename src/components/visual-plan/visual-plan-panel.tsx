@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Film, Save, AlertCircle, ChevronDown, CheckCircle2, Circle, UserCircle, RefreshCw } from "lucide-react";
+import { Film, Save, AlertCircle, ChevronDown, CheckCircle2, Circle, UserCircle, RefreshCw, Copy, Check, Download, Images } from "lucide-react";
 import { useRef, useEffect } from "react";
 import type { Script, VisualPlan } from "@/types";
 import type { Avatar } from "@/types/avatar";
 import type { SceneCard } from "@/types/scene";
+import type { GeneratedAsset } from "@/lib/repositories/visual-plan-repo";
 import { SceneCardItem } from "./scene-card";
 import { generateVisualPlanAction, saveVisualPlanAction } from "@/app/actions/visual-plan";
 import { AvatarPickerModal } from "@/components/avatars/avatar-picker-modal";
@@ -18,6 +19,7 @@ interface VisualPlanPanelProps {
   initialPlan: VisualPlan | null;
   initialScriptId: string | null;
   initialAvatar?: Avatar | null;
+  initialAssets?: GeneratedAsset[];
 }
 
 export function VisualPlanPanel({
@@ -26,6 +28,7 @@ export function VisualPlanPanel({
   initialPlan,
   initialScriptId,
   initialAvatar,
+  initialAssets = [],
 }: VisualPlanPanelProps) {
   const [avatar, setAvatar] = useState<Avatar | null>(initialAvatar ?? null);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -43,6 +46,7 @@ export function VisualPlanPanel({
 
   const [generating, startGenerating] = useTransition();
   const [saving, startSaving] = useTransition();
+  const [assets, setAssets] = useState<GeneratedAsset[]>(initialAssets);
 
   const loading = generating || saving;
 
@@ -76,9 +80,43 @@ export function VisualPlanPanel({
   }
 
   function handleSceneChange(updated: SceneCard) {
-    setScenes((prev) =>
-      prev.map((s) => (s.sceneNumber === updated.sceneNumber ? updated : s))
-    );
+    setScenes((prev) => {
+      const prevScene = prev.find(s => s.sceneNumber === updated.sceneNumber);
+      const newScenes = prev.map((s) => (s.sceneNumber === updated.sceneNumber ? updated : s));
+
+      // Auto-save to DB when a new generated image URL lands
+      if (
+        updated.generatedImageUrl &&
+        updated.generatedImageUrl !== prevScene?.generatedImageUrl &&
+        scriptId && plan
+      ) {
+        void saveVisualPlanAction(
+          campaignId,
+          scriptId,
+          overallDirection,
+          baseLayer,
+          plan.aRoll ?? [],
+          plan.bRoll ?? [],
+          newScenes
+        );
+        // Optimistically add to left column assets
+        setAssets(a => [
+          {
+            planId: plan.id,
+            sceneNumber: updated.sceneNumber,
+            sceneType: updated.sceneType,
+            shotIdea: updated.shotIdea,
+            imageUrl: updated.generatedImageUrl!,
+            imagePrompt: updated.imagePrompt,
+            klingPrompt: updated.klingPrompt,
+            createdAt: new Date().toISOString(),
+          },
+          ...a.filter(x => !(x.planId === plan.id && x.sceneNumber === updated.sceneNumber)),
+        ]);
+      }
+
+      return newScenes;
+    });
     setIsDirty(true);
     setSaveStatus("idle");
   }
@@ -108,208 +146,232 @@ export function VisualPlanPanel({
 
   const hasPlan = scenes.length > 0;
 
-  if (scripts.length === 0) {
-    return (
-      <div className="mx-auto max-w-4xl">
-        <EmptyState
-          icon={Film}
-          title="No scripts yet"
-          description="Generate a script on the Script tab first, then come back to build the visual plan."
-        />
-      </div>
-    );
-  }
-
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
-      {/* Script selector + generate */}
-      <section className="space-y-2">
-        <div className="flex items-center gap-2">
-          <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Source Script
-          </label>
-          <ProviderBadge provider="openai" />
-          <div className="ml-auto">
-            {avatar ? (
-              <button
-                type="button"
-                onClick={() => setPickerOpen(true)}
-                className="flex items-center gap-1.5 rounded-full border border-border bg-muted/50 pl-0.5 pr-2 py-0.5 hover:border-primary/40 transition-colors"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={avatar.imageUrls[0]} alt="Avatar" className="h-5 w-5 rounded-full object-cover" />
-                <span className="text-[10px] font-medium text-muted-foreground">{avatar.name}</span>
-                <RefreshCw className="h-2.5 w-2.5 text-muted-foreground" />
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setPickerOpen(true)}
-                className="flex items-center gap-1.5 rounded-full border border-dashed border-border px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:border-primary/40 hover:text-foreground transition-colors"
-              >
-                <UserCircle className="h-3 w-3" />
-                Attach Avatar
-              </button>
-            )}
-          </div>
+    <div className="flex h-full min-h-0 overflow-hidden">
+      {/* ── Left assets column ──────────────────────────────── */}
+      <aside className="w-56 shrink-0 border-r flex flex-col overflow-hidden bg-muted/20">
+        <div className="px-3 py-3 border-b shrink-0 flex items-center gap-2">
+          <Images className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+            Assets {assets.length > 0 && `· ${assets.length}`}
+          </span>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex-1">
-            <ScriptPicker
-              scripts={scripts}
-              selectedId={scriptId}
-              onSelect={handleScriptChange}
-              disabled={loading}
+        <div className="flex-1 overflow-y-auto">
+          {assets.length === 0 ? (
+            <p className="p-4 text-[11px] text-muted-foreground/40 leading-relaxed">
+              Generated images will appear here automatically.
+            </p>
+          ) : (
+            assets.map((asset) => (
+              <AssetTile key={`${asset.planId}-${asset.sceneNumber}`} asset={asset} />
+            ))
+          )}
+        </div>
+      </aside>
+
+      {/* ── Main content ─────────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="mx-auto max-w-4xl space-y-6 p-6">
+          {scripts.length === 0 ? (
+            <EmptyState
+              icon={Film}
+              title="No scripts yet"
+              description="Generate a script on the Script tab first, then come back to build the visual plan."
             />
-          </div>
-          <button
-            type="button"
-            disabled={!scriptId || loading}
-            onClick={handleGenerate}
-            className={cn(
-              "inline-flex shrink-0 items-center gap-2 rounded-md px-4 py-2 text-sm font-medium",
-              "bg-primary text-primary-foreground hover:bg-primary/90",
-              "disabled:cursor-not-allowed disabled:opacity-50",
-              "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-            )}
-          >
-            <Film className={cn("h-4 w-4", generating && "animate-pulse")} />
-            {generating ? "Generating…" : hasPlan ? "Regenerate" : "Generate Visual Plan"}
-          </button>
-        </div>
-      </section>
+          ) : (
+            <>
+              {/* Script selector + generate */}
+              <section className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Source Script
+                  </label>
+                  <ProviderBadge provider="openai" />
+                  <div className="ml-auto">
+                    {avatar ? (
+                      <button
+                        type="button"
+                        onClick={() => setPickerOpen(true)}
+                        className="flex items-center gap-1.5 rounded-full border border-border bg-muted/50 pl-0.5 pr-2 py-0.5 hover:border-primary/40 transition-colors"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={avatar.imageUrls[0]} alt="Avatar" className="h-5 w-5 rounded-full object-cover" />
+                        <span className="text-[10px] font-medium text-muted-foreground">{avatar.name}</span>
+                        <RefreshCw className="h-2.5 w-2.5 text-muted-foreground" />
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setPickerOpen(true)}
+                        className="flex items-center gap-1.5 rounded-full border border-dashed border-border px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:border-primary/40 hover:text-foreground transition-colors"
+                      >
+                        <UserCircle className="h-3 w-3" />
+                        Attach Avatar
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="flex-1">
+                    <ScriptPicker
+                      scripts={scripts}
+                      selectedId={scriptId}
+                      onSelect={handleScriptChange}
+                      disabled={loading}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    disabled={!scriptId || loading}
+                    onClick={handleGenerate}
+                    className={cn(
+                      "inline-flex shrink-0 items-center gap-2 rounded-md px-4 py-2 text-sm font-medium",
+                      "bg-primary text-primary-foreground hover:bg-primary/90",
+                      "disabled:cursor-not-allowed disabled:opacity-50",
+                      "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                    )}
+                  >
+                    <Film className={cn("h-4 w-4", generating && "animate-pulse")} />
+                    {generating ? "Generating…" : hasPlan ? "Regenerate" : "Generate Visual Plan"}
+                  </button>
+                </div>
+              </section>
 
-      {/* Error */}
-      {error && (
-        <div className="flex items-start gap-2 rounded-md border border-destructive/50 bg-destructive/5 px-3 py-2.5 text-sm text-destructive">
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>{error}</span>
-        </div>
-      )}
-
-      {/* Generating skeleton */}
-      {generating && (
-        <div className="space-y-3 animate-pulse">
-          <div className="h-16 rounded-lg bg-muted" />
-          <div className="h-16 rounded-lg bg-muted" />
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-14 rounded-lg bg-muted" />
-          ))}
-        </div>
-      )}
-
-      {/* Plan content */}
-      {hasPlan && !generating && (
-        <>
-          {/* Direction + base layer */}
-          <section className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Overall Visual Direction
-              </label>
-              <textarea
-                value={overallDirection}
-                rows={5}
-                onChange={(e) => { setOverallDirection(e.target.value); setIsDirty(true); setSaveStatus("idle"); }}
-                className="w-full resize-none rounded-md border bg-background px-3 py-2 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Base Layer & Production Notes
-              </label>
-              <textarea
-                value={baseLayer}
-                rows={5}
-                onChange={(e) => { setBaseLayer(e.target.value); setIsDirty(true); setSaveStatus("idle"); }}
-                className="w-full resize-none rounded-md border bg-background px-3 py-2 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-              />
-            </div>
-          </section>
-
-          {/* A/B roll idea lists */}
-          {(plan?.aRoll?.length || plan?.bRoll?.length) && (
-            <section className="grid grid-cols-2 gap-4">
-              {plan.aRoll && plan.aRoll.length > 0 && (
-                <IdeaList label="A-Roll Ideas" items={plan.aRoll} accentColor="blue" />
+              {/* Error */}
+              {error && (
+                <div className="flex items-start gap-2 rounded-md border border-destructive/50 bg-destructive/5 px-3 py-2.5 text-sm text-destructive">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>{error}</span>
+                </div>
               )}
-              {plan.bRoll && plan.bRoll.length > 0 && (
-                <IdeaList label="B-Roll Ideas" items={plan.bRoll} accentColor="amber" />
+
+              {/* Generating skeleton */}
+              {generating && (
+                <div className="space-y-3 animate-pulse">
+                  <div className="h-16 rounded-lg bg-muted" />
+                  <div className="h-16 rounded-lg bg-muted" />
+                  {[...Array(5)].map((_, i) => (
+                    <div key={i} className="h-14 rounded-lg bg-muted" />
+                  ))}
+                </div>
               )}
-            </section>
+
+              {/* Plan content */}
+              {hasPlan && !generating && (
+                <>
+                  {/* Direction + base layer */}
+                  <section className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        Overall Visual Direction
+                      </label>
+                      <textarea
+                        value={overallDirection}
+                        rows={5}
+                        onChange={(e) => { setOverallDirection(e.target.value); setIsDirty(true); setSaveStatus("idle"); }}
+                        className="w-full resize-none rounded-md border bg-background px-3 py-2 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        Base Layer & Production Notes
+                      </label>
+                      <textarea
+                        value={baseLayer}
+                        rows={5}
+                        onChange={(e) => { setBaseLayer(e.target.value); setIsDirty(true); setSaveStatus("idle"); }}
+                        className="w-full resize-none rounded-md border bg-background px-3 py-2 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                      />
+                    </div>
+                  </section>
+
+                  {/* A/B roll idea lists */}
+                  {(plan?.aRoll?.length || plan?.bRoll?.length) && (
+                    <section className="grid grid-cols-2 gap-4">
+                      {plan.aRoll && plan.aRoll.length > 0 && (
+                        <IdeaList label="A-Roll Ideas" items={plan.aRoll} accentColor="blue" />
+                      )}
+                      {plan.bRoll && plan.bRoll.length > 0 && (
+                        <IdeaList label="B-Roll Ideas" items={plan.bRoll} accentColor="amber" />
+                      )}
+                    </section>
+                  )}
+
+                  {/* Scene breakdown */}
+                  <section className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        Scene Breakdown — {scenes.length} scenes
+                      </p>
+                      <ExpandAllButton scenes={scenes} />
+                    </div>
+                    <div className="space-y-2">
+                      {scenes.map((scene) => (
+                        <SceneCardItem
+                          key={scene.sceneNumber}
+                          scene={scene}
+                          onChange={handleSceneChange}
+                          campaignId={campaignId}
+                          avatarId={avatar?.id ?? null}
+                        />
+                      ))}
+                    </div>
+                  </section>
+
+                  {/* Save bar */}
+                  <div className="flex items-center justify-between border-t pt-4">
+                    <span className="text-xs text-muted-foreground">
+                      {saveStatus === "saved"
+                        ? "Saved!"
+                        : isDirty
+                        ? "Unsaved changes"
+                        : "No unsaved changes"}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={!isDirty || loading}
+                      onClick={handleSave}
+                      className={cn(
+                        "inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium",
+                        "hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50",
+                        "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                      )}
+                    >
+                      <Save className="h-4 w-4" />
+                      {saving ? "Saving…" : "Save All Changes"}
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {/* Empty states */}
+              {!hasPlan && !generating && scriptId && (
+                <EmptyState
+                  icon={Film}
+                  title="Ready to generate"
+                  description='Click "Generate Visual Plan" to build a scene-by-scene visual direction from this script.'
+                />
+              )}
+              {!hasPlan && !generating && !scriptId && (
+                <EmptyState
+                  icon={Film}
+                  title="Select a script above"
+                  description="Choose which script to build the visual plan from."
+                />
+              )}
+            </>
           )}
 
-          {/* Scene breakdown */}
-          <section className="space-y-2">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Scene Breakdown — {scenes.length} scenes
-              </p>
-              <ExpandAllButton scenes={scenes} />
-            </div>
-            <div className="space-y-2">
-              {scenes.map((scene) => (
-                <SceneCardItem
-                  key={scene.sceneNumber}
-                  scene={scene}
-                  onChange={handleSceneChange}
-                  campaignId={campaignId}
-                  avatarId={avatar?.id ?? null}
-                />
-              ))}
-            </div>
-          </section>
-
-          {/* Save bar */}
-          <div className="flex items-center justify-between border-t pt-4">
-            <span className="text-xs text-muted-foreground">
-              {saveStatus === "saved"
-                ? "Saved!"
-                : isDirty
-                ? "Unsaved changes"
-                : "No unsaved changes"}
-            </span>
-            <button
-              type="button"
-              disabled={!isDirty || loading}
-              onClick={handleSave}
-              className={cn(
-                "inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium",
-                "hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50",
-                "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-              )}
-            >
-              <Save className="h-4 w-4" />
-              {saving ? "Saving…" : "Save All Changes"}
-            </button>
-          </div>
-        </>
-      )}
-
-      {/* Empty states */}
-      {!hasPlan && !generating && scriptId && (
-        <EmptyState
-          icon={Film}
-          title="Ready to generate"
-          description='Click "Generate Visual Plan" to build a scene-by-scene visual direction from this script.'
-        />
-      )}
-      {!hasPlan && !generating && !scriptId && (
-        <EmptyState
-          icon={Film}
-          title="Select a script above"
-          description="Choose which script to build the visual plan from."
-        />
-      )}
-
-      {pickerOpen && (
-        <AvatarPickerModal
-          campaignId={campaignId}
-          currentAvatarId={avatar?.id ?? null}
-          onClose={() => setPickerOpen(false)}
-          onAttached={(newAvatar) => setAvatar(newAvatar)}
-        />
-      )}
+          {pickerOpen && (
+            <AvatarPickerModal
+              campaignId={campaignId}
+              currentAvatarId={avatar?.id ?? null}
+              onClose={() => setPickerOpen(false)}
+              onAttached={(newAvatar) => setAvatar(newAvatar)}
+            />
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -434,5 +496,102 @@ function EmptyState({ icon: Icon, title, description }: { icon: React.ElementTyp
       <p className="text-sm font-medium">{title}</p>
       <p className="mt-1 max-w-xs text-xs text-muted-foreground">{description}</p>
     </div>
+  );
+}
+
+// ── Asset panel components ──────────────────────────────────────────────────
+
+function AssetTile({ asset }: { asset: GeneratedAsset }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="border-b">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full p-2.5 text-left hover:bg-muted/40 transition-colors"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={asset.imageUrl}
+          alt={asset.shotIdea}
+          className="w-full aspect-video object-cover rounded border border-border mb-1.5"
+        />
+        <div className="flex items-center gap-1.5">
+          <span className={cn(
+            "text-[9px] font-semibold uppercase tracking-wider px-1 py-0.5 rounded",
+            asset.sceneType === "A-roll"
+              ? "bg-blue-50 text-blue-600 border border-blue-200"
+              : "bg-amber-50 text-amber-600 border border-amber-200"
+          )}>
+            {asset.sceneType}
+          </span>
+          <p className="text-[10px] text-muted-foreground truncate flex-1">
+            {asset.sceneNumber}. {asset.shotIdea}
+          </p>
+        </div>
+      </button>
+      {open && (
+        <div className="px-2.5 pb-3 space-y-2">
+          <AssetPromptBlock label="Image Prompt" value={asset.imagePrompt} />
+          <AssetPromptBlock label="Kling 3.0 Prompt" value={asset.klingPrompt} />
+          <AssetDownloadButton url={asset.imageUrl} filename={`scene-${asset.sceneNumber}.jpg`} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AssetPromptBlock({ label, value }: { label: string; value: string }) {
+  const [copied, setCopied] = useState(false);
+  async function handleCopy() {
+    await navigator.clipboard.writeText(value);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+  return (
+    <div className="space-y-0.5">
+      <div className="flex items-center justify-between">
+        <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</span>
+        <button
+          type="button"
+          onClick={handleCopy}
+          className={cn(
+            "inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[9px] font-medium transition-colors",
+            copied ? "text-emerald-600" : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          {copied ? <Check className="h-2.5 w-2.5" /> : <Copy className="h-2.5 w-2.5" />}
+          {copied ? "Copied" : "Copy"}
+        </button>
+      </div>
+      <p className="text-[10px] text-muted-foreground leading-relaxed line-clamp-4">{value}</p>
+    </div>
+  );
+}
+
+function AssetDownloadButton({ url, filename }: { url: string; filename: string }) {
+  async function handleDownload() {
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objectUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(objectUrl);
+    } catch { /* silently fail */ }
+  }
+  return (
+    <button
+      type="button"
+      onClick={handleDownload}
+      className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/50 px-2 py-1 text-[10px] font-medium text-muted-foreground hover:bg-muted transition-colors"
+    >
+      <Download className="h-3 w-3" />
+      Download
+    </button>
   );
 }

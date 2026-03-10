@@ -55,6 +55,24 @@ export function SceneCardItem({ scene, onChange, campaignId, avatarId }: SceneCa
     }
   }
 
+  async function handleDownload() {
+    if (!scene.generatedImageUrl) return;
+    try {
+      const res = await fetch(scene.generatedImageUrl);
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objectUrl;
+      a.download = `scene-${scene.sceneNumber}.jpg`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(objectUrl);
+    } catch {
+      // silently fail — image is still viewable
+    }
+  }
+
   async function handleDocumentUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -327,14 +345,14 @@ export function SceneCardItem({ scene, onChange, campaignId, avatarId }: SceneCa
                       </div>
                     </div>
                   ) : (
-                    <a
-                      href={scene.generatedImageUrl}
-                      download={`scene-${scene.sceneNumber}.jpg`}
+                    <button
+                      type="button"
+                      onClick={handleDownload}
                       className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-md bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80"
                       title="Download image"
                     >
                       <Download className="h-3.5 w-3.5" />
-                    </a>
+                    </button>
                   )}
                 </div>
               </div>
