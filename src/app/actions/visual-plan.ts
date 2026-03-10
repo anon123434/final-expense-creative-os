@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 import { getCampaignById } from "@/lib/repositories/campaign-repo";
 import { getScriptsByCampaign } from "@/lib/repositories/script-repo";
 import { getAvatarById } from "@/lib/repositories/avatar-repo";
-import { upsertVisualPlan } from "@/lib/repositories/visual-plan-repo";
-import { generateVisualPlan } from "@/lib/services/visual-plan-generator";
+import { upsertVisualPlan, getLatestVisualPlanForScript } from "@/lib/repositories/visual-plan-repo";
+import { generateVisualPlan, generateMoreBRoll } from "@/lib/services/visual-plan-generator";
 import { generateSingleImage, uploadGeneratedImage } from "@/lib/services/gemini-image";
 import { hasGeminiKey, resolveHeyGenApiKey, getSupabaseUrl } from "@/lib/config/env";
 import type { FailResult } from "@/lib/result";
@@ -294,5 +294,57 @@ export async function checkVideoStatusAction(
   } catch (err) {
     console.error("checkVideoStatusAction:", err);
     return actionFail(err, "Failed to check video status.");
+  }
+}
+
+// ── Generate more B-roll ideas ──────────────────────────────────────────────
+
+export async function generateMoreBRollAction(
+  campaignId: string,
+  scriptId: string
+): Promise<ActionResult<{ plan: VisualPlan }>> {
+  try {
+    await loadUserKeys();
+    const [campaign, scripts] = await Promise.all([
+      getCampaignById(campaignId),
+      getScriptsByCampaign(campaignId),
+    ]);
+    if (!campaign) return actionFail(null, "Campaign not found.");
+    const script = scripts.find((s) => s.id === scriptId);
+    if (!script) return actionFail(null, "Script not found.");
+
+    const avatar = campaign.avatarId ? await getAvatarById(campaign.avatarId) : null;
+    const avatarDescription = avatar?.expandedPrompt ?? avatar?.prompt ?? null;
+
+    const existing = await getLatestVisualPlanForScript(campaignId, scriptId);
+    const existingBRoll = existing?.bRoll ?? [];
+    const existingScenes = existing?.sceneBreakdown ?? [];
+    const startSceneNumber = (existingScenes.at(-1)?.sceneNumber ?? existingScenes.length) + 1;
+
+    const { newIdeas, newScenes } = await generateMoreBRoll({
+      campaign,
+      hook: script.hook ?? "",
+      body: script.body ?? "",
+      cta: script.cta ?? "",
+      avatarDescription,
+      existingBRollIdeas: existingBRoll,
+      startSceneNumber,
+    });
+
+    const plan = await upsertVisualPlan({
+      campaignId,
+      scriptId,
+      overallDirection: existing?.overallDirection ?? null,
+      baseLayer: existing?.baseLayer ?? null,
+      aRoll: existing?.aRoll ?? null,
+      bRoll: [...existingBRoll, ...newIdeas],
+      scenes: [...existingScenes, ...newScenes],
+    });
+
+    revalidatePath(`/campaigns/${campaignId}/visual-plan`);
+    return actionOk({ plan });
+  } catch (err) {
+    console.error("generateMoreBRollAction:", err);
+    return actionFail(err, "Failed to generate more B-roll ideas.");
   }
 }
