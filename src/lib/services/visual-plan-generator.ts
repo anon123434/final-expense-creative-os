@@ -36,6 +36,21 @@ export interface GeneratedVisualPlan {
   scenes: SceneCard[];
 }
 
+export interface GenerateMoreBRollInput {
+  campaign: Campaign;
+  hook: string;
+  body: string;
+  cta: string;
+  avatarDescription?: string | null;
+  existingBRollIdeas: string[];
+  startSceneNumber: number;
+}
+
+export interface GeneratedMoreBRoll {
+  newIdeas: string[];
+  newScenes: SceneCard[];
+}
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function splitSentences(text: string): string[] {
@@ -558,4 +573,111 @@ export async function generateVisualPlan(
   // ── Mock fallback ────────────────────────────────────────────────────
   await new Promise((r) => setTimeout(r, 1400));
   return mockVisualPlan(input);
+}
+
+export async function generateMoreBRoll(
+  input: GenerateMoreBRollInput
+): Promise<GeneratedMoreBRoll> {
+  if (!isProviderConfigured("generateVisualPlan")) {
+    // Mock fallback: 3 hardcoded new ideas
+    const mock = [
+      "Adult child calling to check in on aging parent",
+      "Family gathered around dinner table, one empty seat",
+      "Hands signing a document at a kitchen table",
+    ];
+    return {
+      newIdeas: mock,
+      newScenes: mock.map((idea, i) => ({
+        sceneNumber: input.startSceneNumber + i,
+        lineReference: truncate(idea),
+        sceneType: "B-roll" as const,
+        setting: "modest home interior, natural light",
+        shotIdea: idea,
+        emotion: "quiet reflection",
+        cameraStyle: "50mm documentary realism, static",
+        imagePrompt: buildImagePrompt(idea, false),
+        klingPrompt: buildKlingPrompt("Camera holds still. Subject moves with natural, unposed behavior. Very slow push-in."),
+        useAvatarReference: false,
+      })),
+    };
+  }
+
+  const avoidList = input.existingBRollIdeas.length > 0
+    ? `\n\nAlready covered — do NOT repeat these:\n${input.existingBRollIdeas.map((x, i) => `${i + 1}. ${x}`).join("\n")}`
+    : "";
+
+  const avatarSection = input.avatarDescription
+    ? `\nAvatar likeness:\n${input.avatarDescription}\nApply family visual consistency rules to any B-roll featuring people.\n`
+    : "";
+
+  const systemPrompt = `You are a visual director for final expense insurance video ads.
+
+Generate 3 new B-roll scene ideas for the given script. Each idea must be emotionally resonant, distinct from the existing ideas, and suitable for a 30-second final expense ad.
+
+Return a JSON array (no wrapper object, no markdown fences):
+[
+  {
+    "idea": "one-sentence concept description",
+    "setting": "specific location, time of day, light source",
+    "shotIdea": "what we see — subject and action",
+    "emotion": "emotional tone",
+    "cameraStyle": "lens, framing, movement style",
+    "image_prompt": "rich visual description — subject, setting, framing, light. Do NOT include 50mm, documentary, no watermarks, 16:9.",
+    "kling_prompt": "what moves and how, camera action. Do NOT include stabilized, no shake, 50mm."
+  }
+]
+
+RULES:
+- All scenes are B-roll (observational, candid, no direct camera address).
+- image_prompt must describe the subject clearly — a person, object, or environment.
+- kling_prompt must describe subtle, grounded movement only.
+- Build emotional variety across the 3 new ideas.${input.avatarDescription ? "\n- Apply the same family visual consistency rules as the main plan." : ""}`;
+
+  const userPrompt = `Campaign:
+- Persona: ${input.campaign.personaId ?? "general"}
+- Emotional tone: ${input.campaign.emotionalTone ?? "warm and empathetic"}
+${avatarSection}
+Script:
+HOOK: ${input.hook}
+BODY: ${input.body}
+CTA: ${input.cta}
+${avoidList}
+
+Generate 3 new B-roll ideas now.`;
+
+  const raw = await generateTextWithOpenAI({ system: systemPrompt, prompt: userPrompt });
+  const trimmed = raw.trim().replace(/^```json?\s*/i, "").replace(/```\s*$/, "");
+
+  let parsed: Array<Record<string, unknown>>;
+  try {
+    parsed = JSON.parse(trimmed);
+    if (!Array.isArray(parsed)) throw new Error("Not an array");
+  } catch {
+    throw new Error(`OpenAI returned invalid JSON for generateMoreBRoll: ${raw.slice(0, 200)}`);
+  }
+
+  const newIdeas: string[] = [];
+  const newScenes: SceneCard[] = [];
+
+  parsed.forEach((raw, i) => {
+    const idea = String(raw.idea ?? raw.shotIdea ?? "New B-roll idea");
+    const imageDesc = String(raw.image_prompt ?? "");
+    const klingDesc = String(raw.kling_prompt ?? "");
+    newIdeas.push(idea);
+    newScenes.push({
+      sceneNumber: input.startSceneNumber + i,
+      lineReference: truncate(idea),
+      sceneType: "B-roll",
+      setting: String(raw.setting ?? ""),
+      shotIdea: String(raw.shotIdea ?? idea),
+      emotion: String(raw.emotion ?? ""),
+      cameraStyle: String(raw.cameraStyle ?? ""),
+      imagePrompt: buildImagePrompt(imageDesc, false),
+      klingPrompt: buildKlingPrompt(klingDesc),
+      useAvatarReference: false,
+      useDocumentReference: false,
+    });
+  });
+
+  return { newIdeas, newScenes };
 }
