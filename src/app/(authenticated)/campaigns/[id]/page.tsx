@@ -149,6 +149,20 @@ export default async function OverviewTab({ params }: OverviewPageProps) {
 
   const completedCount = stages.filter((s) => s.status === "completed").length;
   const selectedConcept = concepts.find((c) => c.isSelected) ?? null;
+  const latestScript = scripts[0] ?? null;
+
+  // Strip [emotion tags], [directions], and similar bracketed annotations from script text
+  function cleanScript(text: string | null): string {
+    if (!text) return "";
+    return text.replace(/\[[^\]]*\]/g, "").replace(/\n{3,}/g, "\n\n").trim();
+  }
+
+  const printScript = latestScript
+    ? cleanScript(
+        [latestScript.hook, latestScript.body, latestScript.cta].filter(Boolean).join("\n\n") ||
+          latestScript.fullScript,
+      )
+    : null;
 
   const hasBriefContent =
     persona ||
@@ -165,311 +179,255 @@ export default async function OverviewTab({ params }: OverviewPageProps) {
     triggers.length > 0;
 
   return (
-    <div className="space-y-6">
-      {/* Print button — hidden in actual print output */}
-      <div className="flex justify-end print:hidden">
-        <PrintOverviewButton />
-      </div>
-
-      {/* Print-only: document header */}
-      <div className="hidden print:block print-section mb-6 border-b border-gray-200 pb-4">
-        <p className="font-mono-data text-[9px] uppercase tracking-widest text-gray-400 mb-1">Campaign Overview</p>
-        <h1 className="font-display text-2xl font-bold text-gray-900">{campaign.title}</h1>
-        <p className="text-xs text-gray-400 mt-1">
-          Generated {new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
-        </p>
-      </div>
-
-      {/* Hero avatar node */}
-      <AvatarHero
-        avatar={avatar}
-        campaignId={id}
-        completedCount={completedCount}
-        totalStages={stages.length}
-      />
-
-      {/* Pipeline stage grid */}
-      <PipelineGrid stages={stages} />
-
-      {/* Campaign brief — compact, below pipeline */}
-      {hasBriefContent && (
-        <div className="pt-6">
-          <div className="mb-4 flex items-center gap-3">
-            <div className="h-px flex-1 bg-white/5" />
-            <p className="font-mono-data text-[9px] uppercase tracking-widest text-muted-foreground/60">
-              Campaign Brief
-            </p>
-            <div className="h-px flex-1 bg-white/5" />
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            {/* Creative */}
-            {(persona || archetype || tone || campaign.durationSeconds || campaign.offerName) && (
-              <BriefCard label="Creative">
-                {campaign.offerName && (
-                  <BriefRow label="Offer" value={campaign.offerName} />
-                )}
-                {persona && <BriefRow label="Persona" value={persona.label} />}
-                {archetype && (
-                  <BriefRow label="Archetype" value={archetype.label} />
-                )}
-                {tone && <BriefRow label="Tone" value={tone.label} />}
-                {campaign.durationSeconds && (
-                  <BriefRow
-                    label="Duration"
-                    value={`${campaign.durationSeconds}s`}
-                  />
-                )}
-              </BriefCard>
-            )}
-
-            {/* Production */}
-            {(campaign.phoneNumber ||
-              campaign.deadlineText ||
-              campaign.benefitAmount ||
-              campaign.affordabilityText ||
-              campaign.ctaStyle) && (
-              <BriefCard label="Production">
-                {campaign.phoneNumber && (
-                  <BriefRow label="Phone" value={campaign.phoneNumber} />
-                )}
-                {campaign.deadlineText && (
-                  <BriefRow label="Deadline" value={campaign.deadlineText} />
-                )}
-                {campaign.benefitAmount && (
-                  <BriefRow label="Benefit" value={campaign.benefitAmount} />
-                )}
-                {campaign.affordabilityText && (
-                  <BriefRow
-                    label="Affordability"
-                    value={campaign.affordabilityText}
-                  />
-                )}
-                {campaign.ctaStyle && (
-                  <BriefRow label="CTA" value={campaign.ctaStyle} />
-                )}
-              </BriefCard>
-            )}
-
-            {/* Triggers */}
-            {triggers.length > 0 && (
-              <div className="rounded-xl border border-white/6 bg-[#0d0d0d] px-4 py-3 sm:col-span-2 print:hidden">
-                <p className="mb-2.5 font-mono-data text-[9px] uppercase tracking-widest text-muted-foreground/60">
-                  Triggers
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {includedTriggers.map((label) => (
-                    <span
-                      key={label}
-                      className="inline-flex items-center gap-1 rounded-full border border-[#00E676]/25 bg-[#00E676]/8 px-2 py-0.5 font-mono-data text-[10px] text-[#00E676]"
-                    >
-                      <Check className="h-2.5 w-2.5" strokeWidth={2.5} />
-                      {label}
-                    </span>
-                  ))}
-                  {excludedTriggers.map((label) => (
-                    <span
-                      key={label}
-                      className="inline-flex items-center gap-1 rounded-full border border-white/8 bg-white/4 px-2 py-0.5 font-mono-data text-[10px] text-muted-foreground/40 line-through"
-                    >
-                      <X className="h-2.5 w-2.5" strokeWidth={2} />
-                      {label}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Notes */}
-            {campaign.notes && (
-              <div className="rounded-xl border border-white/6 bg-[#0d0d0d] px-4 py-3 sm:col-span-2">
-                <p className="mb-2 font-mono-data text-[9px] uppercase tracking-widest text-muted-foreground/60">
-                  Notes
-                </p>
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  {campaign.notes}
-                </p>
-              </div>
-            )}
-          </div>
+    <>
+      {/* ── SCREEN VIEW (hidden on print) ── */}
+      <div className="screen-only space-y-6">
+        <div className="flex justify-end">
+          <PrintOverviewButton />
         </div>
-      )}
 
-      {/* ═══════════ PRINT-ONLY SECTIONS ═══════════ */}
+        <AvatarHero
+          avatar={avatar}
+          campaignId={id}
+          completedCount={completedCount}
+          totalStages={stages.length}
+        />
 
-      {/* Objective */}
-      <div className="hidden print:block print-section rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
-        <p className="mb-1 font-mono-data text-[9px] uppercase tracking-widest text-gray-400">Objective</p>
-        <p className="text-sm font-semibold text-gray-900">
-          Create a professional, emotional, and persuasive CTV commercial that drives immediate phone call response.
-        </p>
-        <p className="mt-1 text-xs text-gray-600">
-          The finished spot must feel like a real television ad — not a slideshow. High-quality editing, emotional pacing,
-          and strategic b-roll are essential. The target audience is adults 55+ who respond to warmth, simplicity, and urgency.
-        </p>
-      </div>
+        <PipelineGrid stages={stages} />
 
-      {/* Selected Concept */}
-      {selectedConcept && (
-        <div className="hidden print:block print-section rounded-xl border border-gray-200 px-4 py-3">
-          <p className="mb-2 font-mono-data text-[9px] uppercase tracking-widest text-gray-400">Selected Concept</p>
-          <p className="font-display text-sm font-semibold text-gray-900">{selectedConcept.title}</p>
-          {selectedConcept.oneSentenceAngle && (
-            <p className="mt-1 text-xs text-gray-600">{selectedConcept.oneSentenceAngle}</p>
-          )}
-          {selectedConcept.hook && (
-            <div className="mt-2 border-t border-gray-100 pt-2">
-              <p className="font-mono-data text-[9px] uppercase tracking-wider text-gray-400">Hook</p>
-              <p className="mt-0.5 text-xs text-gray-700">{selectedConcept.hook}</p>
+        {hasBriefContent && (
+          <div className="pt-6">
+            <div className="mb-4 flex items-center gap-3">
+              <div className="h-px flex-1 bg-white/5" />
+              <p className="font-mono-data text-[9px] uppercase tracking-widest text-muted-foreground/60">
+                Campaign Brief
+              </p>
+              <div className="h-px flex-1 bg-white/5" />
             </div>
-          )}
-        </div>
-      )}
+            <div className="grid gap-3 sm:grid-cols-2">
+              {(persona || archetype || tone || campaign.durationSeconds || campaign.offerName) && (
+                <BriefCard label="Creative">
+                  {campaign.offerName && <BriefRow label="Offer" value={campaign.offerName} />}
+                  {persona && <BriefRow label="Persona" value={persona.label} />}
+                  {archetype && <BriefRow label="Archetype" value={archetype.label} />}
+                  {tone && <BriefRow label="Tone" value={tone.label} />}
+                  {campaign.durationSeconds && (
+                    <BriefRow label="Duration" value={`${campaign.durationSeconds}s`} />
+                  )}
+                </BriefCard>
+              )}
+              {(campaign.phoneNumber || campaign.deadlineText || campaign.benefitAmount || campaign.affordabilityText || campaign.ctaStyle) && (
+                <BriefCard label="Production">
+                  {campaign.phoneNumber && <BriefRow label="Phone" value={campaign.phoneNumber} />}
+                  {campaign.deadlineText && <BriefRow label="Deadline" value={campaign.deadlineText} />}
+                  {campaign.benefitAmount && <BriefRow label="Benefit" value={campaign.benefitAmount} />}
+                  {campaign.affordabilityText && <BriefRow label="Affordability" value={campaign.affordabilityText} />}
+                  {campaign.ctaStyle && <BriefRow label="CTA" value={campaign.ctaStyle} />}
+                </BriefCard>
+              )}
+              {triggers.length > 0 && (
+                <div className="rounded-xl border border-white/6 bg-[#0d0d0d] px-4 py-3 sm:col-span-2">
+                  <p className="mb-2.5 font-mono-data text-[9px] uppercase tracking-widest text-muted-foreground/60">Triggers</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {includedTriggers.map((label) => (
+                      <span key={label} className="inline-flex items-center gap-1 rounded-full border border-[#00E676]/25 bg-[#00E676]/8 px-2 py-0.5 font-mono-data text-[10px] text-[#00E676]">
+                        <Check className="h-2.5 w-2.5" strokeWidth={2.5} />
+                        {label}
+                      </span>
+                    ))}
+                    {excludedTriggers.map((label) => (
+                      <span key={label} className="inline-flex items-center gap-1 rounded-full border border-white/8 bg-white/4 px-2 py-0.5 font-mono-data text-[10px] text-muted-foreground/40 line-through">
+                        <X className="h-2.5 w-2.5" strokeWidth={2} />
+                        {label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {campaign.notes && (
+                <div className="rounded-xl border border-white/6 bg-[#0d0d0d] px-4 py-3 sm:col-span-2">
+                  <p className="mb-2 font-mono-data text-[9px] uppercase tracking-widest text-muted-foreground/60">Notes</p>
+                  <p className="text-sm leading-relaxed text-muted-foreground">{campaign.notes}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
 
-      {/* Psychological Trigger Sequence */}
-      {triggers.filter((t) => t.included).length > 0 && (
-        <div className="hidden print:block print-section rounded-xl border border-gray-200 px-4 py-3">
-          <p className="mb-1 font-mono-data text-[9px] uppercase tracking-widest text-gray-400">
-            Psychological Trigger Sequence
-          </p>
-          <p className="mb-2 text-[10px] text-gray-500">
-            These triggers are built into the script in this order. Your editing should reinforce each beat visually.
-          </p>
-          <ol className="space-y-1.5">
-            {triggers
-              .filter((t) => t.included)
-              .sort(
-                (a, b) =>
-                  (getTriggerByKey(a.triggerKey)?.masterOrder ?? 99) -
-                  (getTriggerByKey(b.triggerKey)?.masterOrder ?? 99),
-              )
-              .map((t) => {
-                const seed = getTriggerByKey(t.triggerKey);
-                return seed ? (
-                  <li key={t.triggerKey} className="flex gap-2 text-xs text-gray-700">
-                    <span className="w-4 shrink-0 text-gray-400 tabular-nums">{seed.masterOrder}.</span>
-                    <span>
+      {/* ── PRINT DOCUMENT (hidden on screen, shown on print) ── */}
+      <div className="print-only" style={{ fontFamily: "Georgia, 'Times New Roman', serif", color: "#111", background: "white", fontSize: "12px", lineHeight: "1.6" }}>
+
+        {/* Header */}
+        <div style={{ borderBottom: "2px solid #111", paddingBottom: "12px", marginBottom: "20px" }}>
+          <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.15em", color: "#666", marginBottom: "4px", fontFamily: "Arial, sans-serif" }}>Campaign Brief</div>
+          <div style={{ fontSize: "22px", fontWeight: "bold", fontFamily: "Arial, sans-serif", letterSpacing: "0.02em" }}>{campaign.title}</div>
+          <div style={{ fontSize: "10px", color: "#888", marginTop: "4px", fontFamily: "Arial, sans-serif" }}>
+            Generated {new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
+            {avatar && <span> &nbsp;·&nbsp; Avatar: <strong>{avatar.name}</strong></span>}
+            {campaign.durationSeconds && <span> &nbsp;·&nbsp; Duration: <strong>{campaign.durationSeconds}s</strong></span>}
+          </div>
+        </div>
+
+        {/* Objective */}
+        <div style={{ background: "#f8f8f8", border: "1px solid #ddd", borderRadius: "6px", padding: "12px 16px", marginBottom: "16px" }}>
+          <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.12em", color: "#888", fontFamily: "Arial, sans-serif", marginBottom: "6px" }}>Objective</div>
+          <div style={{ fontWeight: "bold", marginBottom: "4px", fontFamily: "Arial, sans-serif", fontSize: "13px" }}>
+            Create a professional, emotional, and persuasive CTV commercial that drives immediate phone call response.
+          </div>
+          <div style={{ fontSize: "11px", color: "#444" }}>
+            The finished spot must feel like a real television ad — not a slideshow. High-quality editing, emotional pacing, and strategic b-roll are essential. Target audience: adults 55+ who respond to warmth, simplicity, and urgency.
+          </div>
+        </div>
+
+        {/* Campaign Details */}
+        {hasBriefContent && (
+          <div style={{ marginBottom: "16px" }}>
+            <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.12em", color: "#888", fontFamily: "Arial, sans-serif", marginBottom: "8px", borderBottom: "1px solid #eee", paddingBottom: "4px" }}>Campaign Details</div>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+              <tbody>
+                {campaign.offerName && <PrintDetailRow label="Offer" value={campaign.offerName} />}
+                {persona && <PrintDetailRow label="Persona" value={persona.label} />}
+                {archetype && <PrintDetailRow label="Archetype" value={archetype.label} />}
+                {tone && <PrintDetailRow label="Tone" value={tone.label} />}
+                {campaign.phoneNumber && <PrintDetailRow label="Phone #" value={campaign.phoneNumber} bold />}
+                {campaign.deadlineText && <PrintDetailRow label="Deadline" value={campaign.deadlineText} />}
+                {campaign.benefitAmount && <PrintDetailRow label="Benefit Amount" value={campaign.benefitAmount} bold />}
+                {campaign.affordabilityText && <PrintDetailRow label="Affordability" value={campaign.affordabilityText} />}
+                {campaign.ctaStyle && <PrintDetailRow label="CTA Style" value={campaign.ctaStyle} />}
+              </tbody>
+            </table>
+            {campaign.notes && (
+              <div style={{ marginTop: "8px", padding: "8px 12px", background: "#fffef0", border: "1px solid #e8e0b0", borderRadius: "4px", fontSize: "11px" }}>
+                <span style={{ fontWeight: "bold", fontFamily: "Arial, sans-serif", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em", color: "#888" }}>Notes: </span>
+                {campaign.notes}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Script */}
+        {printScript && (
+          <div style={{ marginBottom: "16px", pageBreakInside: "avoid" }}>
+            <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.12em", color: "#888", fontFamily: "Arial, sans-serif", marginBottom: "8px", borderBottom: "1px solid #eee", paddingBottom: "4px" }}>
+              Script{latestScript?.durationSeconds ? ` — ${latestScript.durationSeconds}s` : ""}{latestScript?.versionName ? ` (${latestScript.versionName})` : ""}
+            </div>
+            <div style={{ background: "#fafafa", border: "1px solid #ddd", borderRadius: "6px", padding: "14px 16px", whiteSpace: "pre-wrap", fontSize: "13px", lineHeight: "1.8", fontFamily: "Georgia, serif" }}>
+              {printScript}
+            </div>
+          </div>
+        )}
+
+        {/* Psychological Trigger Sequence */}
+        {triggers.filter((t) => t.included).length > 0 && (
+          <div style={{ marginBottom: "16px" }}>
+            <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.12em", color: "#888", fontFamily: "Arial, sans-serif", marginBottom: "4px", borderBottom: "1px solid #eee", paddingBottom: "4px" }}>
+              Psychological Trigger Sequence
+            </div>
+            <div style={{ fontSize: "10px", color: "#666", marginBottom: "8px" }}>
+              These triggers are baked into the script in this order — reinforce each beat visually with b-roll and text animation.
+            </div>
+            <ol style={{ margin: 0, paddingLeft: "20px" }}>
+              {triggers
+                .filter((t) => t.included)
+                .sort((a, b) => (getTriggerByKey(a.triggerKey)?.masterOrder ?? 99) - (getTriggerByKey(b.triggerKey)?.masterOrder ?? 99))
+                .map((t) => {
+                  const seed = getTriggerByKey(t.triggerKey);
+                  return seed ? (
+                    <li key={t.triggerKey} style={{ marginBottom: "4px", fontSize: "11px" }}>
                       <strong>{seed.label}</strong> — {seed.description}
-                    </span>
-                  </li>
-                ) : null;
-              })}
-          </ol>
+                    </li>
+                  ) : null;
+                })}
+            </ol>
+          </div>
+        )}
+
+        {/* Editing Guidelines */}
+        <div style={{ marginBottom: "16px" }}>
+          <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.12em", color: "#888", fontFamily: "Arial, sans-serif", marginBottom: "8px", borderBottom: "1px solid #eee", paddingBottom: "4px" }}>Editing Guidelines</div>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px" }}>
+            <tbody>
+              <tr style={{ verticalAlign: "top" }}>
+                <td style={{ width: "50%", paddingRight: "16px", paddingBottom: "10px" }}>
+                  <div style={{ fontWeight: "bold", fontFamily: "Arial, sans-serif", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em", color: "#444", marginBottom: "4px" }}>Editing Structure</div>
+                  <ul style={{ margin: 0, paddingLeft: "16px", lineHeight: "1.7" }}>
+                    <li><strong>Base Layer:</strong> Use the Avatar IV video as the primary track throughout the spot.</li>
+                    <li><strong>B-Roll:</strong> Layer b-roll on top to illustrate key script moments — family, documents, phones, outdoor scenes.</li>
+                    <li><strong>Pacing:</strong> Cut on beats and emotional peaks. No static holds over 3 seconds.</li>
+                    <li><strong>Audience:</strong> 55+ viewers on connected TV — clean edits, no fast cuts or heavy VFX.</li>
+                  </ul>
+                </td>
+                <td style={{ width: "50%", paddingBottom: "10px" }}>
+                  <div style={{ fontWeight: "bold", fontFamily: "Arial, sans-serif", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em", color: "#444", marginBottom: "4px" }}>Sound Design</div>
+                  <ul style={{ margin: 0, paddingLeft: "16px", lineHeight: "1.7" }}>
+                    <li>Warm, emotional background music throughout.</li>
+                    <li>Duck music slightly under dialogue — voice must be clear.</li>
+                    <li>Subtle sound effects on b-roll (paper, phone ring, door close).</li>
+                    <li>Music swell on emotional peaks and CTA.</li>
+                  </ul>
+                </td>
+              </tr>
+              <tr style={{ verticalAlign: "top" }}>
+                <td style={{ paddingRight: "16px", paddingBottom: "6px" }}>
+                  <div style={{ fontWeight: "bold", fontFamily: "Arial, sans-serif", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em", color: "#444", marginBottom: "4px" }}>Text Animation</div>
+                  <ul style={{ margin: 0, paddingLeft: "16px", lineHeight: "1.7" }}>
+                    <li>Emphasize key words with bold kinetic text on screen.</li>
+                    <li>Phone number: large, high-contrast, hold for at least 3 seconds.</li>
+                    <li>Benefit amount (e.g. "$25,000") reinforced visually when spoken.</li>
+                    <li>Simple fade or slide-up only — nothing flashy.</li>
+                  </ul>
+                </td>
+                <td style={{ paddingBottom: "6px" }}>
+                  <div style={{ fontWeight: "bold", fontFamily: "Arial, sans-serif", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em", color: "#444", marginBottom: "4px" }}>Retention &amp; CTA</div>
+                  <ul style={{ margin: 0, paddingLeft: "16px", lineHeight: "1.7" }}>
+                    <li>New cut or b-roll every 2–4 seconds during the body.</li>
+                    <li>Re-introduce avatar face after long b-roll sequences.</li>
+                    <li>Phone number on screen for full duration it is spoken.</li>
+                    <li>End on a clean frame — not a hard cut to black.</li>
+                  </ul>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-      )}
 
-      {/* Editing Structure */}
-      <div className="hidden print:block print-section rounded-xl border border-gray-200 px-4 py-3">
-        <p className="mb-2 font-mono-data text-[9px] uppercase tracking-widest text-gray-400">
-          Editing Structure
-        </p>
-        <ul className="space-y-1.5 text-xs text-gray-700">
-          <li className="flex gap-2"><span className="shrink-0 font-semibold text-gray-500">Base Layer</span><span>Use the Avatar IV video as the primary video track throughout the entire spot.</span></li>
-          <li className="flex gap-2"><span className="shrink-0 font-semibold text-gray-500">B-Roll</span><span>Layer relevant b-roll footage on top of the avatar to visually illustrate key script moments — family scenes, documents, phones, outdoor settings.</span></li>
-          <li className="flex gap-2"><span className="shrink-0 font-semibold text-gray-500">Pacing</span><span>Cut on beats and emotional peaks. Avoid static holds longer than 3 seconds. Vary shot rhythm to maintain viewer attention throughout.</span></li>
-          <li className="flex gap-2"><span className="shrink-0 font-semibold text-gray-500">Audience</span><span>Target is 55+ adults on connected TV. Keep edits clean and easy to follow — avoid fast cuts, heavy VFX, or anything disorienting.</span></li>
-        </ul>
-      </div>
-
-      {/* Psychological Editing Techniques */}
-      <div className="hidden print:block print-section rounded-xl border border-gray-200 px-4 py-3">
-        <p className="mb-2 font-mono-data text-[9px] uppercase tracking-widest text-gray-400">
-          Psychological Editing Techniques
-        </p>
-        <div className="grid grid-cols-2 gap-x-6 gap-y-2">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 mb-1">Sound Design</p>
-            <ul className="space-y-1 text-xs text-gray-700 list-disc list-inside">
-              <li>Use warm, emotional background music throughout</li>
-              <li>Lower music slightly under dialogue so voice is clear</li>
-              <li>Add subtle sound effects on key b-roll moments (paper rustling, phone ring, door close)</li>
-              <li>Increase music swell on emotional peaks and the final CTA</li>
-            </ul>
-          </div>
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 mb-1">Text Animation</p>
-            <ul className="space-y-1 text-xs text-gray-700 list-disc list-inside">
-              <li>Emphasize key words with bold kinetic text appearing on screen</li>
-              <li>Highlight the phone number with large, high-contrast text that holds for at least 3 seconds</li>
-              <li>Use simple fade or slide-up animations — nothing flashy</li>
-              <li>Reinforce the benefit amount visually (e.g. "$25,000") when spoken</li>
-            </ul>
-          </div>
-          <div className="mt-1">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 mb-1">Retention Techniques</p>
-            <ul className="space-y-1 text-xs text-gray-700 list-disc list-inside">
-              <li>Cut to a new scene or b-roll every 2–4 seconds during the body</li>
-              <li>Use reaction shots or emotional close-ups to reinforce key emotional moments</li>
-              <li>Re-introduce the avatar face after any long b-roll sequence</li>
-              <li>Never let silence run for more than 1 second</li>
-            </ul>
-          </div>
-          <div className="mt-1">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 mb-1">CTA Sequence</p>
-            <ul className="space-y-1 text-xs text-gray-700 list-disc list-inside">
-              <li>Phone number must appear on screen during both mentions (90s) or the single mention (30s/60s)</li>
-              <li>Hold the phone number text on screen for the full duration it is spoken</li>
-              <li>Music should swell slightly at the CTA to create urgency</li>
-              <li>End on a clean frame — avatar or emotional b-roll, not a hard cut to black</li>
-            </ul>
-          </div>
+        {/* Export Requirements */}
+        <div style={{ border: "2px solid #111", borderRadius: "6px", padding: "12px 16px", marginBottom: "14px", pageBreakInside: "avoid" }}>
+          <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.15em", fontFamily: "Arial, sans-serif", fontWeight: "bold", marginBottom: "10px" }}>⚠ Export Requirements — NON-NEGOTIABLE</div>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+            <tbody>
+              <tr style={{ background: "#f0f0f0" }}>
+                <td style={{ padding: "5px 10px", fontWeight: "bold", width: "120px", fontFamily: "Arial, sans-serif" }}>Duration</td>
+                <td style={{ padding: "5px 10px", fontWeight: "bold" }}>EXACTLY 59 seconds &nbsp;–OR–&nbsp; EXACTLY 1 minute 29 seconds (1:29)</td>
+              </tr>
+              <tr><td style={{ padding: "4px 10px", fontFamily: "Arial, sans-serif", fontWeight: "600" }}>Resolution</td><td style={{ padding: "4px 10px" }}>1080p</td></tr>
+              <tr style={{ background: "#f9f9f9" }}><td style={{ padding: "4px 10px", fontFamily: "Arial, sans-serif", fontWeight: "600" }}>Bitrate</td><td style={{ padding: "4px 10px" }}>12,000 Kbps</td></tr>
+              <tr><td style={{ padding: "4px 10px", fontFamily: "Arial, sans-serif", fontWeight: "600" }}>Codec</td><td style={{ padding: "4px 10px" }}>H.264</td></tr>
+              <tr style={{ background: "#f9f9f9" }}><td style={{ padding: "4px 10px", fontFamily: "Arial, sans-serif", fontWeight: "600" }}>Container</td><td style={{ padding: "4px 10px" }}>MP4</td></tr>
+              <tr><td style={{ padding: "4px 10px", fontFamily: "Arial, sans-serif", fontWeight: "600" }}>Frame Rate</td><td style={{ padding: "4px 10px" }}>30fps</td></tr>
+            </tbody>
+          </table>
         </div>
-      </div>
 
-      {/* Export Requirements */}
-      <div className="hidden print:block print-section rounded-xl border-2 border-gray-900 px-4 py-3">
-        <p className="mb-2 font-mono-data text-[9px] uppercase tracking-widest text-gray-500">
-          ⚠ Export Requirements — NON-NEGOTIABLE
-        </p>
-        <table className="w-full text-xs text-gray-700">
-          <tbody>
-            <tr className="border-b border-gray-200 bg-gray-50">
-              <td className="w-28 py-1.5 pl-1 font-bold text-gray-900">Duration</td>
-              <td className="py-1.5 font-bold text-gray-900">EXACTLY 59 seconds &nbsp;–OR–&nbsp; EXACTLY 1 minute 29 seconds (1:29)</td>
-            </tr>
-            <tr className="border-b border-gray-100">
-              <td className="w-28 py-1 pl-1 font-semibold">Resolution</td>
-              <td className="py-1">1080p</td>
-            </tr>
-            <tr className="border-b border-gray-100">
-              <td className="py-1 pl-1 font-semibold">Bitrate</td>
-              <td className="py-1">12,000 Kbps</td>
-            </tr>
-            <tr className="border-b border-gray-100">
-              <td className="py-1 pl-1 font-semibold">Codec</td>
-              <td className="py-1">H.264</td>
-            </tr>
-            <tr className="border-b border-gray-100">
-              <td className="py-1 pl-1 font-semibold">Container</td>
-              <td className="py-1">MP4</td>
-            </tr>
-            <tr>
-              <td className="py-1 pl-1 font-semibold">Frame Rate</td>
-              <td className="py-1">30fps</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      {/* Naming Convention */}
-      <div className="hidden print:block print-section rounded-xl border border-gray-200 px-4 py-3">
-        <p className="mb-2 font-mono-data text-[9px] uppercase tracking-widest text-gray-400">
-          File Naming Convention
-        </p>
-        <p className="text-xs text-gray-700 mb-2">
-          Format: <code className="rounded bg-gray-100 px-1.5 py-0.5 font-mono font-semibold">Name-Platform-Last4.mp4</code>
-        </p>
-        <div className="rounded bg-gray-50 border border-gray-200 px-3 py-2">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 mb-1">Example breakdown</p>
-          <p className="font-mono text-sm font-bold text-gray-900">Martha-Roku-0026.mp4</p>
-          <div className="mt-1.5 grid grid-cols-3 gap-1 text-[10px] text-gray-500">
-            <span><strong>Martha</strong> = Avatar name</span>
-            <span><strong>Roku</strong> = Platform</span>
-            <span><strong>0026</strong> = Last 4 of phone #</span>
-          </div>
+        {/* Naming Convention */}
+        <div style={{ border: "1px solid #ccc", borderRadius: "6px", padding: "12px 16px", pageBreakInside: "avoid" }}>
+          <div style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.12em", color: "#888", fontFamily: "Arial, sans-serif", marginBottom: "8px" }}>File Naming Convention</div>
+          <div style={{ fontFamily: "monospace", fontSize: "15px", fontWeight: "bold", marginBottom: "6px" }}>Name-Platform-Last4.mp4</div>
+          <div style={{ fontFamily: "monospace", fontSize: "13px", color: "#444", marginBottom: "8px" }}>Example: Martha-Roku-0026.mp4</div>
+          <table style={{ fontSize: "11px", color: "#555", borderCollapse: "collapse" }}>
+            <tbody>
+              <tr>
+                <td style={{ paddingRight: "24px" }}><strong>Martha</strong> = Avatar / spokesperson name</td>
+                <td style={{ paddingRight: "24px" }}><strong>Roku</strong> = Distribution platform</td>
+                <td><strong>0026</strong> = Last 4 digits of phone number</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
+
       </div>
-    </div>
+    </>
   );
 }
 
@@ -498,5 +456,14 @@ function BriefRow({ label, value }: { label: string; value: string }) {
       </span>
       <span className="text-[13px] text-foreground/75">{value}</span>
     </div>
+  );
+}
+
+function PrintDetailRow({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
+  return (
+    <tr>
+      <td style={{ padding: "3px 10px 3px 0", fontFamily: "Arial, sans-serif", fontWeight: 600, fontSize: "11px", color: "#555", width: "130px", verticalAlign: "top" }}>{label}</td>
+      <td style={{ padding: "3px 0", fontSize: "12px", fontWeight: bold ? "bold" : "normal" }}>{value}</td>
+    </tr>
   );
 }

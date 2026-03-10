@@ -150,7 +150,12 @@
 }
 
 /* ─── Print / PDF Export ─────────────────────────────────────────────────── */
+.print-only { display: none; }
+
 @media print {
+  .screen-only { display: none !important; }
+  .print-only  { display: block !important; }
+
   @page {
     size: letter;
     margin: 0;
@@ -219,8 +224,11 @@
     break-inside: avoid;
   }
 
-  /* Force print-only sections visible — overrides Tailwind's `hidden` class */
-  .print-section {
+  /* Screen/print visibility helpers */
+  .screen-only {
+    display: block;
+  }
+  .print-only {
     display: block !important;
   }
 
