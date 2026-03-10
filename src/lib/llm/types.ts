@@ -55,6 +55,7 @@ export type LLMTask =
   | "applyTransform"            // Claude
   | "generateVOScript"          // OpenAI
   | "generateVisualPlan"        // OpenAI
+  | "generateMoreBRoll"         // OpenAI
   | "generateScenePromptPack";  // OpenAI
 
 /**
@@ -76,5 +77,6 @@ export const TASK_PROVIDER_MAP: Record<LLMTask, ProviderBackend> = {
   // ── OpenAI (production prompts, structured plans, VO tagging) ──────────
   generateVOScript:           "openai",
   generateVisualPlan:         "openai",
+  generateMoreBRoll:          "openai",
   generateScenePromptPack:    "openai",
 };

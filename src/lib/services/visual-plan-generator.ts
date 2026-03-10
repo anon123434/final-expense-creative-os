@@ -578,7 +578,7 @@ export async function generateVisualPlan(
 export async function generateMoreBRoll(
   input: GenerateMoreBRollInput
 ): Promise<GeneratedMoreBRoll> {
-  if (!isProviderConfigured("generateVisualPlan")) {
+  if (!isProviderConfigured("generateMoreBRoll")) {
     // Mock fallback: 3 hardcoded new ideas
     const mock = [
       "Adult child calling to check in on aging parent",
@@ -683,27 +683,7 @@ Generate 3 new B-roll ideas now.`;
 
     return { newIdeas, newScenes };
   } catch (err) {
-    console.warn("[generateMoreBRoll] OpenAI error, falling back to mock:", err);
-    const mock = [
-      "Adult child calling to check in on aging parent",
-      "Family gathered around dinner table, one empty seat",
-      "Hands signing a document at a kitchen table",
-    ];
-    return {
-      newIdeas: mock,
-      newScenes: mock.map((idea, i) => ({
-        sceneNumber: input.startSceneNumber + i,
-        lineReference: truncate(idea),
-        sceneType: "B-roll" as const,
-        setting: "modest home interior, natural light",
-        shotIdea: idea,
-        emotion: "quiet reflection",
-        cameraStyle: "50mm documentary realism, static",
-        imagePrompt: buildImagePrompt(idea, false),
-        klingPrompt: buildKlingPrompt("Camera holds still. Subject moves with natural, unposed behavior. Very slow push-in."),
-        useAvatarReference: false,
-        useDocumentReference: false,
-      })),
-    };
+    console.error("[generateMoreBRoll] OpenAI call failed:", err);
+    throw err;
   }
 }

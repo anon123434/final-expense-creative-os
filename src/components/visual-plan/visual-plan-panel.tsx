@@ -164,7 +164,7 @@ export function VisualPlanPanel({
         const brandNewScenes = (newPlan.sceneBreakdown ?? []).filter(s => !existingNums.has(s.sceneNumber));
         return [...prev, ...brandNewScenes];
       });
-      setIsDirty(true);
+      setIsDirty(false);
     } else {
       setError(result.error);
     }
