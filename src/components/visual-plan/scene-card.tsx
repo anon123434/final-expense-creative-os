@@ -61,18 +61,26 @@ export function SceneCardItem({ scene, onChange, campaignId, avatarId }: SceneCa
     setUploadingDoc(true);
     setDocUploadError(null);
     try {
-      const reader = new FileReader();
+      // Compress image client-side to stay under the 1MB server action body limit
       const base64 = await new Promise<string>((resolve, reject) => {
-        reader.onload = () => {
-          const result = reader.result as string;
-          // Strip the data URL prefix to get raw base64
-          const base64Data = result.split(",")[1];
-          resolve(base64Data);
+        const img = new Image();
+        const objectUrl = URL.createObjectURL(file);
+        img.onload = () => {
+          URL.revokeObjectURL(objectUrl);
+          const MAX = 1200;
+          const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.round(img.width * scale);
+          canvas.height = Math.round(img.height * scale);
+          const ctx = canvas.getContext("2d")!;
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.88);
+          resolve(dataUrl.split(",")[1]);
         };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
+        img.onerror = reject;
+        img.src = objectUrl;
       });
-      const result = await uploadDocumentAssetAction(base64, file.type, campaignId, scene.sceneNumber);
+      const result = await uploadDocumentAssetAction(base64, "image/jpeg", campaignId, scene.sceneNumber);
       if (result.success) {
         onChange({ ...scene, documentReferenceUrl: result.data.url, useDocumentReference: true });
       } else {
