@@ -49,7 +49,7 @@ export function VisualPlanPanel({
   const [assets, setAssets] = useState<GeneratedAsset[]>(initialAssets);
   const [generatingMoreBRoll, setGeneratingMoreBRoll] = useState(false);
 
-  const loading = generating || saving;
+  const loading = generating || saving || generatingMoreBRoll;
 
   function handleScriptChange(id: string) {
     setScriptId(id);
@@ -164,6 +164,7 @@ export function VisualPlanPanel({
         const brandNewScenes = (newPlan.sceneBreakdown ?? []).filter(s => !existingNums.has(s.sceneNumber));
         return [...prev, ...brandNewScenes];
       });
+      setIsDirty(true);
     } else {
       setError(result.error);
     }
