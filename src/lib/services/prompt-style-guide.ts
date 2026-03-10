@@ -99,6 +99,104 @@ export function isPhoneListeningScene(text: string): boolean {
   );
 }
 
+/**
+ * Check Holding Beat — B-roll performance direction.
+ *
+ * Apply automatically when a scene shows the avatar holding a check
+ * (benefit payment, settlement, etc.). Covers the full emotional arc:
+ * quiet disbelief → acceptance → subtle relief.
+ */
+export const CHECK_HOLDING_BEAT = {
+  /**
+   * Image still: captures the avatar in profile holding the check at reading distance.
+   * Append to sceneDescription before passing to buildImagePrompt().
+   */
+  imageDirection:
+    "Avatar holds a check with both hands, side profile, 3/4 angle. " +
+    "Document tilted slightly toward camera, filling 40–50% of frame. " +
+    "Avatar's shoulder and side profile visible at frame edge, face slightly soft-focused. " +
+    "Expression: quiet disbelief transitioning to acceptance — slight parting of lips, soft eyes. " +
+    "Warm interior light. Medium shot.",
+
+  /**
+   * Kling motion: full arc from stunned stillness → exhale of relief.
+   * Use as the motionDescription in buildKlingPrompt().
+   */
+  klingMotion:
+    "Avatar looks down at the check. A slight pause — 1 to 2 seconds of absolute stillness. " +
+    "Then a slow exhale through the nose, tiny smile forming or chin lowering in quiet relief. " +
+    "One small slow nod of acceptance. No large gestures. " +
+    "Very slow push-in toward the document.",
+} as const;
+
+/**
+ * Detects whether a scene description likely involves a check holding beat.
+ * Used by generators to auto-apply CHECK_HOLDING_BEAT.
+ */
+export function isCheckHoldingScene(text: string): boolean {
+  const lower = text.toLowerCase();
+  return (
+    // "check" paired with a holding/receiving/benefit context
+    (lower.includes("check") && (lower.includes("hold") || lower.includes("holding") || lower.includes("receives") || lower.includes("handed") || lower.includes("benefit") || lower.includes("insurance") || lower.includes("payment"))) ||
+    (lower.includes("benefit amount") && (lower.includes("hold") || lower.includes("receives") || lower.includes("check"))) ||
+    // These compound phrases are unambiguous — self-sufficient signals
+    lower.includes("payment check") || lower.includes("insurance check") || lower.includes("benefit check")
+  );
+}
+
+/**
+ * Approval Letter Beat — B-roll performance direction.
+ *
+ * Apply automatically when a scene shows the avatar holding or reading
+ * an approval letter, coverage confirmation, or acceptance document.
+ * Covers the full emotional arc: focused reading → still pause → quiet relief.
+ */
+export const APPROVAL_LETTER_BEAT = {
+  /**
+   * Image still: avatar in profile reading the letter at reading distance.
+   * Append to sceneDescription before passing to buildImagePrompt().
+   */
+  imageDirection:
+    "Avatar holds an open letter or document at reading distance, side profile, 3/4 angle. " +
+    "Document tilted toward camera, filling 40–50% of frame. " +
+    "Avatar's shoulder and side profile visible at frame edge. " +
+    "Expression: focused and still — mid-read, eyes tracking across the page. " +
+    "Warm interior light. Medium shot.",
+
+  /**
+   * Kling motion: full arc from silent reading → pause → quiet acceptance.
+   * Use as the motionDescription in buildKlingPrompt().
+   */
+  klingMotion:
+    "Avatar reads the letter silently. Eyes track slowly across the page. " +
+    "A small still pause — expression held. " +
+    "Then expression softens — a quiet exhale or the shoulders drop very slightly. " +
+    "One slow nod of acceptance. No large gestures. " +
+    "Very slow push-in toward the document.",
+} as const;
+
+/**
+ * Detects whether a scene description likely involves an approval letter beat.
+ * Used by generators to auto-apply APPROVAL_LETTER_BEAT.
+ */
+export function isApprovalLetterScene(text: string): boolean {
+  const lower = text.toLowerCase();
+  const hasDocument = lower.includes("letter") || lower.includes("document") || lower.includes("paperwork");
+  const hasCoverage = lower.includes("coverage") || lower.includes("insurance") || lower.includes("policy");
+  return (
+    // Compound phrases are unambiguous — self-sufficient signals
+    lower.includes("coverage confirmed") ||
+    lower.includes("policy approved") ||
+    lower.includes("coverage letter") ||
+    lower.includes("approval letter") ||
+    lower.includes("acceptance letter") ||
+    // "approved"/"accepted" require a document or coverage context to avoid false positives
+    ((lower.includes("approved") || lower.includes("accepted")) && (hasDocument || hasCoverage)) ||
+    // "letter" paired with coverage/insurance/policy context
+    (lower.includes("letter") && hasCoverage)
+  );
+}
+
 // ── Kling ──────────────────────────────────────────────────────────────────
 
 const KLING_RULES = [

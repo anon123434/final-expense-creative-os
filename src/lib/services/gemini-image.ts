@@ -14,13 +14,22 @@ interface GeminiPart {
  */
 export async function generateSingleImage(
   prompt: string,
-  referenceImages?: string | string[] | null
+  referenceImages?: string | string[] | null,
+  documentImage?: string | null
 ): Promise<{ base64: string; mimeType: string }> {
   const apiKey = resolveGeminiApiKey()!;
 
   const parts: GeminiPart[] = [];
 
-  // Add reference images before the prompt text for better subject grounding
+  // Document reference goes FIRST — highest grounding priority for exact reproduction
+  if (documentImage) {
+    const match = documentImage.match(/^data:([^;]+);base64,(.+)$/);
+    if (match) {
+      parts.push({ inlineData: { mimeType: match[1], data: match[2] } });
+    }
+  }
+
+  // Avatar reference images come after the document
   const refs = referenceImages
     ? Array.isArray(referenceImages) ? referenceImages : [referenceImages]
     : [];

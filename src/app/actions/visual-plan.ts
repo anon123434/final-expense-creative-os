@@ -71,7 +71,8 @@ export async function generateSceneImageAction(
   campaignId: string,
   sceneIndex: number,
   imagePrompt: string,
-  avatarId?: string | null
+  avatarId?: string | null,
+  documentReferenceUrl?: string | null
 ): Promise<ActionResult<{ url: string }>> {
   try {
     await loadUserKeys();
@@ -104,12 +105,34 @@ export async function generateSceneImageAction(
       );
     }
 
-    // Append identity instruction when reference images are provided
-    const prompt = refImages.length > 0
-      ? `${imagePrompt}\n\nIMPORTANT: Maintain the exact same face and identity from the reference image.`
-      : imagePrompt;
+    // Fetch document reference image if provided (must be first inlineData for Gemini grounding)
+    let documentImage: string | null = null;
+    if (documentReferenceUrl) {
+      try {
+        if (documentReferenceUrl.startsWith("data:")) {
+          documentImage = documentReferenceUrl;
+        } else {
+          const res = await fetch(documentReferenceUrl);
+          if (!res.ok) throw new Error(`Document fetch failed: ${res.status}`);
+          const buf = await res.arrayBuffer();
+          const mimeType = res.headers.get("content-type") ?? "image/jpeg";
+          documentImage = `data:${mimeType};base64,${Buffer.from(buf).toString("base64")}`;
+        }
+      } catch {
+        // If document fetch fails, proceed without it
+        console.warn("[generateSceneImageAction] Failed to fetch document reference:", documentReferenceUrl);
+      }
+    }
 
-    const { base64, mimeType } = await generateSingleImage(prompt, refImages.length ? refImages : null);
+    const documentAnchor = documentImage
+      ? "CRITICAL: The document held by the person must exactly reproduce the document shown in the first reference image. Do not redesign, alter, paraphrase, or replace any part of its layout, header text, dollar amounts, fields, or graphics. Treat it as a photographic reproduction, not an illustration.\n\n"
+      : "";
+    const identityNote = refImages.length > 0
+      ? "\n\nIMPORTANT: Maintain the exact same face and identity from the reference image."
+      : "";
+    const prompt = `${documentAnchor}${imagePrompt}${identityNote}`;
+
+    const { base64, mimeType } = await generateSingleImage(prompt, refImages.length ? refImages : null, documentImage);
     const url = await uploadGeneratedImage(
       `generated/scenes/${campaignId}/${sceneIndex}.png`,
       base64,
@@ -150,5 +173,30 @@ export async function saveVisualPlanAction(
   } catch (err) {
     console.error("saveVisualPlanAction:", err);
     return actionFail(err, "Failed to save visual plan.");
+  }
+}
+
+// ── Upload document asset ──────────────────────────────────────────────────
+
+/**
+ * Uploads a document reference image (check, approval letter, etc.) to Supabase Storage
+ * and returns the public URL. The URL is stored on the SceneCard's documentReferenceUrl field.
+ */
+export async function uploadDocumentAssetAction(
+  base64: string,
+  mimeType: string,
+  campaignId: string,
+  sceneNumber: number
+): Promise<ActionResult<{ url: string }>> {
+  try {
+    const url = await uploadGeneratedImage(
+      `assets/documents/${campaignId}/${sceneNumber}.png`,
+      base64,
+      mimeType
+    );
+    return actionOk({ url });
+  } catch (err) {
+    console.error("uploadDocumentAssetAction:", err);
+    return actionFail(err, "Failed to upload document asset.");
   }
 }

@@ -14,7 +14,7 @@
 
 import type { Campaign } from "@/types";
 import type { SceneCard } from "@/types/scene";
-import { buildImagePrompt, buildKlingPrompt, PHONE_LISTENING_BEAT, isPhoneListeningScene } from "./prompt-style-guide";
+import { buildImagePrompt, buildKlingPrompt, PHONE_LISTENING_BEAT, isPhoneListeningScene, CHECK_HOLDING_BEAT, isCheckHoldingScene, APPROVAL_LETTER_BEAT, isApprovalLetterScene } from "./prompt-style-guide";
 import { generateTextWithOpenAI, isProviderConfigured } from "@/lib/llm";
 
 // ── Service types ──────────────────────────────────────────────────────────
@@ -142,6 +142,24 @@ const BODY_TEMPLATES: SceneTemplate[] = [
     imageSuffix: `Medium close-up of person holding a phone to their ear, listening attentively. ${PHONE_LISTENING_BEAT.imageDirection}`,
     klingSuffix: PHONE_LISTENING_BEAT.klingMotion,
   },
+  {
+    sceneType: "B-roll",
+    setting: "kitchen table, warm afternoon light",
+    shotIdea: "avatar holds insurance benefit check, side profile, quiet disbelief and relief",
+    emotion: "quiet disbelief transitioning to acceptance, relief",
+    cameraStyle: "50mm medium shot, 3/4 angle, very slow push-in toward document",
+    imageSuffix: `${CHECK_HOLDING_BEAT.imageDirection}`,
+    klingSuffix: CHECK_HOLDING_BEAT.klingMotion,
+  },
+  {
+    sceneType: "B-roll",
+    setting: "living room, soft afternoon light",
+    shotIdea: "avatar reads approval letter confirming coverage, side profile, focused and still",
+    emotion: "focused reading transitioning to quiet acceptance",
+    cameraStyle: "50mm medium shot, 3/4 angle, very slow push-in toward document",
+    imageSuffix: `${APPROVAL_LETTER_BEAT.imageDirection}`,
+    klingSuffix: APPROVAL_LETTER_BEAT.klingMotion,
+  },
 ];
 
 const CTA_TEMPLATE: SceneTemplate = {
@@ -201,6 +219,24 @@ PHONE LISTENING BEAT (apply automatically):
   4. The kling_prompt MUST describe this full performance arc verbatim: "Avatar listens in silence as the other person speaks. Performance arc: attentive stillness → one or two small slow nods → tiny natural facial reactions showing understanding → quiet agreement. Near the end: expression softens noticeably — a subtle exhale, slight shoulder release, or small relaxing gesture signals relief. All movement minimal and involuntary-feeling. Very slow push-in on face."
 - CRITICAL: The image_prompt must show the PERSON on the phone — never a coffee cup, kitchen counter, or empty room. The character's face and the phone are the subject.
 - This beat applies to any scene where the subject receives good news, hears an agent explain coverage, or experiences any phone-based relief moment.
+
+CHECK HOLDING BEAT (apply automatically):
+- Whenever a scene involves the avatar holding a check (benefit payment, settlement, insurance payout), apply the following rules:
+  1. sceneType MUST be "B-roll".
+  2. (Pipeline note: useDocumentReference is set automatically by the server — you do not need to include this field in your JSON output.)
+  3. The image_prompt MUST show the avatar in side profile, 3/4 angle, holding the document so it fills 40–50% of the frame. Start with: "Avatar holds a check with both hands, side profile, 3/4 angle. Document tilted slightly toward camera, filling 40–50% of frame."
+  4. Append the full performance direction: "Expression: quiet disbelief transitioning to acceptance — slight parting of lips, soft eyes. Warm interior light. Medium shot."
+  5. The kling_prompt MUST describe this arc: "Avatar looks down at the check. A slight pause — 1 to 2 seconds of absolute stillness. Then a slow exhale through the nose, tiny smile forming or chin lowering in quiet relief. One small slow nod of acceptance. No large gestures. Very slow push-in toward the document."
+- CRITICAL: When documentReferenceUrl is set on this scene, the EXACT document image will be the first reference passed to the image generator. The generated image must treat it as a photographic reproduction, not invent a generic check.
+
+APPROVAL LETTER BEAT (apply automatically):
+- Whenever a scene involves the avatar reading an approval letter, acceptance document, or coverage confirmation, apply the following rules:
+  1. sceneType MUST be "B-roll".
+  2. (Pipeline note: useDocumentReference is set automatically by the server — you do not need to include this field in your JSON output.)
+  3. The image_prompt MUST show the avatar in side profile reading the letter at reading distance so the document fills 40–50% of the frame. Start with: "Avatar holds an open letter or document at reading distance, side profile, 3/4 angle. Document tilted toward camera, filling 40–50% of frame."
+  4. Append the full performance direction: "Expression: focused and still — mid-read, eyes tracking across the page. Warm interior light. Medium shot."
+  5. The kling_prompt MUST describe this arc: "Avatar reads the letter silently. Eyes track slowly across the page. A small still pause — expression held. Then expression softens — a quiet exhale or the shoulders drop very slightly. One slow nod of acceptance. No large gestures. Very slow push-in toward the document."
+- CRITICAL: When documentReferenceUrl is set on this scene, the EXACT document image will be the first reference passed to the image generator. The generated image must treat it as a photographic reproduction, not invent a generic letter.
 
 AVATAR LIKENESS RULES (when an avatar description is provided):
 - Every A-roll image_prompt MUST begin with the exact avatar description verbatim, followed by the scene details.
@@ -270,6 +306,9 @@ function parseVisualPlanResponse(text: string): GeneratedVisualPlan {
     const rawImage = String(s.image_prompt ?? s.imageDesc ?? "");
     const rawKling = String(s.kling_prompt ?? s.klingDesc ?? "");
 
+    const combinedText = rawImage + " " + String(s.shotIdea ?? "");
+    const isDocScene = isCheckHoldingScene(combinedText) || isApprovalLetterScene(combinedText);
+
     return {
       sceneNumber: Number(s.sceneNumber ?? 1),
       lineReference: String(s.lineReference ?? ""),
@@ -280,7 +319,8 @@ function parseVisualPlanResponse(text: string): GeneratedVisualPlan {
       cameraStyle: String(s.cameraStyle ?? ""),
       imagePrompt: buildImagePrompt(rawImage, sceneType === "A-roll"),
       klingPrompt: buildKlingPrompt(rawKling),
-      useAvatarReference: sceneType === "A-roll" || isPhoneListeningScene(rawImage + " " + String(s.shotIdea ?? "")),
+      useAvatarReference: sceneType === "A-roll" || isPhoneListeningScene(combinedText) || isDocScene,
+      useDocumentReference: isDocScene,
     };
   });
 
@@ -392,6 +432,8 @@ function mockVisualPlan(input: GenerateVisualPlanInput): GeneratedVisualPlan {
   // Body scenes — one per sentence, cycling through body templates
   bodySentences.forEach((sentence, i) => {
     const tmpl = BODY_TEMPLATES[i % BODY_TEMPLATES.length];
+    const tmplText = tmpl.shotIdea + " " + tmpl.imageSuffix;
+    const isTmplDocScene = isCheckHoldingScene(tmplText) || isApprovalLetterScene(tmplText);
     scenes.push({
       sceneNumber: sceneNumber++,
       lineReference: truncate(sentence),
@@ -409,7 +451,8 @@ function mockVisualPlan(input: GenerateVisualPlanInput): GeneratedVisualPlan {
         tmpl.sceneType === "A-roll"
       ),
       klingPrompt: buildKlingPrompt(tmpl.klingSuffix),
-      useAvatarReference: tmpl.sceneType === "A-roll" || isPhoneListeningScene(tmpl.shotIdea + " " + tmpl.imageSuffix),
+      useAvatarReference: tmpl.sceneType === "A-roll" || isPhoneListeningScene(tmplText) || isTmplDocScene,
+      useDocumentReference: isTmplDocScene,
     });
   });
 

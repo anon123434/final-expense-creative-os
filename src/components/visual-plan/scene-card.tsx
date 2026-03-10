@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronUp, Copy, Check, Clapperboard, Camera, Sparkles, Download, UserCircle } from "lucide-react";
+import { ChevronDown, ChevronUp, Copy, Check, Clapperboard, Camera, Sparkles, Download, UserCircle, FileImage } from "lucide-react";
 import type { SceneCard } from "@/types/scene";
 import { cn } from "@/lib/utils";
-import { generateSceneImageAction } from "@/app/actions/visual-plan";
+import { generateSceneImageAction, uploadDocumentAssetAction } from "@/app/actions/visual-plan";
 
 interface SceneCardProps {
   scene: SceneCard;
@@ -20,6 +20,8 @@ export function SceneCardItem({ scene, onChange, campaignId, avatarId }: SceneCa
   const [generatingImage, setGeneratingImage] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+  const [docUploadError, setDocUploadError] = useState<string | null>(null);
 
   function update(field: EditableField, value: string) {
     onChange({ ...scene, [field]: value });
@@ -41,7 +43,8 @@ export function SceneCardItem({ scene, onChange, campaignId, avatarId }: SceneCa
       campaignId,
       scene.sceneNumber,
       scene.imagePrompt,
-      useRef ? avatarId : null
+      useRef ? avatarId : null,
+      scene.documentReferenceUrl ?? null
     );
     clearInterval(timer);
     setGeneratingImage(false);
@@ -49,6 +52,39 @@ export function SceneCardItem({ scene, onChange, campaignId, avatarId }: SceneCa
       onChange({ ...scene, generatedImageUrl: result.data.url });
     } else {
       setImageError(result.error);
+    }
+  }
+
+  async function handleDocumentUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingDoc(true);
+    setDocUploadError(null);
+    try {
+      const reader = new FileReader();
+      const base64 = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => {
+          const result = reader.result as string;
+          // Strip the data URL prefix to get raw base64
+          const base64Data = result.split(",")[1];
+          resolve(base64Data);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const result = await uploadDocumentAssetAction(base64, file.type, campaignId, scene.sceneNumber);
+      if (result.success) {
+        onChange({ ...scene, documentReferenceUrl: result.data.url, useDocumentReference: true });
+      } else {
+        setDocUploadError(result.error);
+      }
+    } catch (err) {
+      setDocUploadError("Failed to upload document.");
+      console.error("handleDocumentUpload:", err);
+    } finally {
+      setUploadingDoc(false);
+      // Reset file input so the same file can be re-uploaded
+      e.target.value = "";
     }
   }
 
@@ -116,6 +152,17 @@ export function SceneCardItem({ scene, onChange, campaignId, avatarId }: SceneCa
           </span>
         )}
 
+        {/* Document reference indicator */}
+        {scene.useDocumentReference && (
+          <span
+            className="mt-0.5 shrink-0 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold select-none bg-amber-50 text-amber-700 border border-amber-200"
+            title={scene.documentReferenceUrl ? "Document reference attached" : "Document reference — upload a file in the scene editor"}
+          >
+            <FileImage className="h-2.5 w-2.5" />
+            {scene.documentReferenceUrl ? "Doc ref" : "No doc"}
+          </span>
+        )}
+
         {/* Generated image thumbnail in header */}
         {scene.generatedImageUrl && !expanded && (
           // eslint-disable-next-line @next/next/no-img-element
@@ -176,6 +223,59 @@ export function SceneCardItem({ scene, onChange, campaignId, avatarId }: SceneCa
             rows={3}
             accentColor="violet"
           />
+
+          {/* Document asset attachment */}
+          {scene.useDocumentReference && (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Document Reference
+                </span>
+                <label
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-medium cursor-pointer transition-colors",
+                    "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100",
+                    uploadingDoc && "opacity-50 pointer-events-none"
+                  )}
+                >
+                  <FileImage className="h-3 w-3" />
+                  {uploadingDoc ? "Uploading…" : scene.documentReferenceUrl ? "Replace" : "Attach file"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    onChange={handleDocumentUpload}
+                    disabled={uploadingDoc}
+                  />
+                </label>
+              </div>
+              {docUploadError && (
+                <p className="text-xs text-destructive">{docUploadError}</p>
+              )}
+              {scene.documentReferenceUrl && (
+                <div className="flex items-center gap-2 rounded-md border border-amber-100 bg-amber-50/50 px-2.5 py-1.5">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={scene.documentReferenceUrl}
+                    alt="Document reference"
+                    className="h-10 w-16 rounded object-cover border border-amber-200"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] font-medium text-amber-700 truncate">Document attached</p>
+                    <p className="text-[10px] text-muted-foreground truncate">{scene.documentReferenceUrl.split("/").pop()}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onChange({ ...scene, documentReferenceUrl: null })}
+                    className="text-[10px] text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                    title="Remove document reference"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Generated image or generate button */}
           <div className="space-y-2">
