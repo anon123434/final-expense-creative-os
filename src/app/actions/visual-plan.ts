@@ -317,8 +317,10 @@ export async function generateMoreBRollAction(
     const avatarDescription = avatar?.expandedPrompt ?? avatar?.prompt ?? null;
 
     const existing = await getLatestVisualPlanForScript(campaignId, scriptId);
+    if (!existing) return actionFail(null, "No visual plan found. Generate a plan first.");
     const existingBRoll = existing?.bRoll ?? [];
     const existingScenes = existing?.sceneBreakdown ?? [];
+    // Use last scene's sceneNumber (not array length) to avoid gaps after multiple generate-more calls
     const startSceneNumber = (existingScenes.at(-1)?.sceneNumber ?? existingScenes.length) + 1;
 
     const { newIdeas, newScenes } = await generateMoreBRoll({
