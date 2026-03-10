@@ -181,9 +181,9 @@ export default async function OverviewTab({ params }: OverviewPageProps) {
   return (
     <>
       {/* ── SCREEN VIEW (hidden on print) ── */}
-      <div className="screen-only space-y-6">
+      <div className="screen-only print:hidden space-y-6">
         <div className="flex justify-end">
-          <PrintOverviewButton />
+          <PrintOverviewButton filename={selectedConcept?.title ?? campaign.title} />
         </div>
 
         <AvatarHero

@@ -224,13 +224,6 @@
     break-inside: avoid;
   }
 
-  /* Screen/print visibility helpers */
-  .screen-only {
-    display: block;
-  }
-  .print-only {
-    display: block !important;
-  }
 
   /* Ensure colors render accurately */
   html {
