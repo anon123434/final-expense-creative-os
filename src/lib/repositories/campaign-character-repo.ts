@@ -20,7 +20,11 @@ export async function getCharactersByCampaign(campaignId: string): Promise<Campa
     .select("*")
     .eq("campaign_id", campaignId)
     .order("created_at");
-  if (error) throw new Error(error.message);
+  // Table may not exist yet (migration pending) — return empty rather than crash
+  if (error) {
+    console.warn("[getCharactersByCampaign] query error (table may not exist yet):", error.message);
+    return [];
+  }
   return (data ?? []).map(toModel);
 }
 
