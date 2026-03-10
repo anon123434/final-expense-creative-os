@@ -219,13 +219,21 @@ Return a JSON object with these exact keys:
 }
 
 IMPORTANT RULES:
-- Create one scene per script sentence. Map every sentence to a scene.
+- Create one scene per script sentence. Map EVERY sentence to a scene.
 - image_prompt: describe the subject, environment, framing, and lighting. DO NOT include "50mm", "documentary", "no watermarks", "16:9" — those are applied automatically by our pipeline.
 - kling_prompt: Use the cinematic director-technique format from the schema. Choose the director tag that best matches the scene's emotional tone (revelation = Spielberg, dread = Fincher, energy = Scorsese, dramatic reveal = Nolan, quiet weight = Villeneuve). Always include a Sound note at the end. DO NOT include "stabilized camera", "no shake", "50mm" — those are applied automatically.
 - A-roll scenes should note direct eye contact with camera.
 - B-roll scenes should feel observational and candid. Prioritize SCROLL-STOPPING visual impact: check/envelope reveals, whispering crowds shot long-lens, hands holding financially weighted documents, faces caught in raw unguarded micro-expressions (disbelief → relief, silent grief, quiet shock). Avoid generic "hands on coffee mug" ideas.
 - Build an emotional arc across the scene sequence.
 - No markdown fences, no commentary — only valid JSON.
+
+VARIETY MANDATE (critical — violations make the visual plan unusable):
+- NEVER place two A-roll scenes back to back. Always break consecutive A-roll with at least one B-roll between them.
+- A-roll MAXIMUM: no more than 40% of scenes should be A-roll. For a 7-scene plan, max 3 A-roll. Push the rest to creative B-roll.
+- Each B-roll must use a DIFFERENT visual approach from all other B-roll scenes. No two B-roll scenes can share the same basic subject/setup. Examples of what makes scenes distinct: subject type (person vs. object vs. location), framing (close-up hands vs. wide crowd shot vs. over-shoulder), emotional register (grief vs. relief vs. shock vs. confusion).
+- B-roll shotIdea MUST be specific to the script. If the script mentions a dollar amount ($25,000), reference it. If it names a person (Harold), build a shot around that name. If it mentions a location (funeral home, kitchen table), place the shot there specifically.
+- A-roll variety: each A-roll scene must have a different physical setup. Examples: seated medium close-up / leaning forward / wide shot from the side / tight on hands with face in background. Never just "spokesperson speaks to camera" repeated.
+- No two scenes should have the same shotIdea concept — every scene is a unique visual statement.
 
 PHONE LISTENING BEAT (apply automatically):
 - Whenever a scene involves the avatar or spokesperson on a phone call where the other party is speaking, apply the following rules:
@@ -340,15 +348,12 @@ function parseVisualPlanResponse(text: string): GeneratedVisualPlan {
     };
   });
 
-  const nextNumber = scenes.length > 0 ? scenes[scenes.length - 1].sceneNumber + 1 : scenes.length + 1;
-  const allScenes = [...scenes, ...buildDocumentScenes(nextNumber, "")];
-
   return {
     overallDirection: String(parsed.overallDirection ?? ""),
     baseLayer: String(parsed.baseLayer ?? ""),
     aRollIdeas: Array.isArray(parsed.aRollIdeas) ? parsed.aRollIdeas.map(String) : [],
     bRollIdeas: Array.isArray(parsed.bRollIdeas) ? parsed.bRollIdeas.map(String) : [],
-    scenes: allScenes,
+    scenes,
   };
 }
 
