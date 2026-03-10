@@ -1,10 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getCampaignById } from "@/lib/repositories/campaign-repo";
+import { getCampaignById, getTriggersByCampaign } from "@/lib/repositories/campaign-repo";
 import { getConceptsByCampaign } from "@/lib/repositories/concept-repo";
 import { upsertScript } from "@/lib/repositories/script-repo";
 import { generateScript } from "@/lib/services/script-generator";
+import { buildTriggerSequence } from "@/lib/services/trigger-sequencer";
 import { generateVOScript } from "@/lib/services/vo-script-generator";
 import { applyTransform } from "@/lib/services/script-transforms";
 import type { ScriptTransform } from "@/lib/services/script-transforms";
@@ -23,9 +24,10 @@ export async function generateScriptAction(
 ): Promise<{ success: true; script: Script; taggedScript: string; scriptProvider: string; voProvider: string } | FailResult> {
   try {
     await loadUserKeys();
-    const [campaign, concepts] = await Promise.all([
+    const [campaign, concepts, campaignTriggers] = await Promise.all([
       getCampaignById(campaignId),
       getConceptsByCampaign(campaignId),
+      getTriggersByCampaign(campaignId),
     ]);
 
     if (!campaign) return { success: false, error: "Campaign not found." };
@@ -33,7 +35,8 @@ export async function generateScriptAction(
     const concept = concepts.find((c) => c.id === conceptId);
     if (!concept) return { success: false, error: "Concept not found." };
 
-    const generated = await generateScript({ campaign, concept, durationSeconds, customPrompt });
+    const triggerSequence = buildTriggerSequence(campaignTriggers, durationSeconds);
+    const generated = await generateScript({ campaign, concept, durationSeconds, customPrompt, triggerSequence });
 
     // Also generate the ElevenLabs-tagged version in the same request
     let taggedScript = "";

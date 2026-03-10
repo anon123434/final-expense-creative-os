@@ -4,6 +4,9 @@ export interface TriggerSeed {
   description: string;
   category: "emotional" | "logical" | "social" | "urgency";
   promptHint: string;
+  masterOrder: number;    // 1–12, sort key for persuasion sequence
+  section: "hook" | "credibility" | "offer" | "stakes" | "mechanism" | "affordability" | "urgency" | "cta";
+  isCore: boolean;        // true = included in smart defaults
 }
 
 export const triggers: TriggerSeed[] = [
@@ -13,6 +16,9 @@ export const triggers: TriggerSeed[] = [
     description: "Leverages trust in experts, officials, or institutions to build credibility.",
     category: "social",
     promptHint: "Reference a trusted authority figure, government program, or licensed professional endorsing the product.",
+    masterOrder: 2,
+    section: "hook",
+    isCore: true,
   },
   {
     key: "scarcity",
@@ -20,6 +26,9 @@ export const triggers: TriggerSeed[] = [
     description: "Creates urgency through limited availability or expiring offers.",
     category: "urgency",
     promptHint: "Emphasize limited spots, expiring rates, or one-time-only offers that the viewer might miss.",
+    masterOrder: 8,
+    section: "mechanism",
+    isCore: false,
   },
   {
     key: "social_proof",
@@ -27,6 +36,9 @@ export const triggers: TriggerSeed[] = [
     description: "Shows that others — peers, neighbors, community — have already taken action.",
     category: "social",
     promptHint: "Include testimonials, statistics about how many people have enrolled, or community endorsements.",
+    masterOrder: 1,
+    section: "hook",
+    isCore: false,
   },
   {
     key: "loss_aversion",
@@ -34,6 +46,9 @@ export const triggers: TriggerSeed[] = [
     description: "Highlights what the viewer stands to lose by not acting — financial burden, family hardship.",
     category: "emotional",
     promptHint: "Paint a vivid picture of the negative outcome if no action is taken — unpaid bills, burdened family.",
+    masterOrder: 6,
+    section: "stakes",
+    isCore: true,
   },
   {
     key: "guilt_avoidance",
@@ -41,6 +56,9 @@ export const triggers: TriggerSeed[] = [
     description: "Appeals to the desire to not leave loved ones with debt or hardship.",
     category: "emotional",
     promptHint: "Frame inaction as leaving a burden on children or spouse. Make the viewer feel responsible for preventing it.",
+    masterOrder: 7,
+    section: "stakes",
+    isCore: false,
   },
   {
     key: "conspiracy_insider",
@@ -48,6 +66,9 @@ export const triggers: TriggerSeed[] = [
     description: "Positions the message as hidden knowledge that 'they' don't want you to know.",
     category: "logical",
     promptHint: "Use language like 'what the insurance companies won't tell you' or 'the secret program most people don't know about'.",
+    masterOrder: 3,
+    section: "hook",
+    isCore: false,
   },
   {
     key: "simplicity",
@@ -55,6 +76,9 @@ export const triggers: TriggerSeed[] = [
     description: "Emphasizes how easy the process is — no exams, no paperwork, just one call.",
     category: "logical",
     promptHint: "Stress the ease: no medical exam, no complicated forms, approval in minutes, just one phone call.",
+    masterOrder: 9,
+    section: "mechanism",
+    isCore: true,
   },
   {
     key: "affordability",
@@ -62,6 +86,9 @@ export const triggers: TriggerSeed[] = [
     description: "Anchors the cost to something trivially small — 'less than a dollar a day'.",
     category: "logical",
     promptHint: "Compare the daily cost to something cheap — a cup of coffee, spare change. Make it feel insignificant.",
+    masterOrder: 10,
+    section: "affordability",
+    isCore: true,
   },
   {
     key: "value_disparity",
@@ -69,6 +96,9 @@ export const triggers: TriggerSeed[] = [
     description: "Contrasts the small cost against the massive benefit — pennies for thousands in coverage.",
     category: "logical",
     promptHint: "Juxtapose the tiny monthly premium against the large payout ($10K–$35K). Make the value feel enormous.",
+    masterOrder: 5,
+    section: "offer",
+    isCore: true,
   },
   {
     key: "legitimacy",
@@ -76,6 +106,9 @@ export const triggers: TriggerSeed[] = [
     description: "Reinforces that this is a real, licensed, state-regulated program — not a scam.",
     category: "social",
     promptHint: "Mention state regulation, licensed agents, A-rated carriers, or official program names to build trust.",
+    masterOrder: 4,
+    section: "credibility",
+    isCore: false,
   },
   {
     key: "urgency",
@@ -83,6 +116,9 @@ export const triggers: TriggerSeed[] = [
     description: "Pushes the viewer to act now — deadlines, age cutoffs, rate locks.",
     category: "urgency",
     promptHint: "Include time-limited language: 'call before midnight', 'rates go up on your next birthday', 'don't wait'.",
+    masterOrder: 11,
+    section: "urgency",
+    isCore: true,
   },
   {
     key: "autonomy",
@@ -90,6 +126,9 @@ export const triggers: TriggerSeed[] = [
     description: "Empowers the viewer — this is their choice, their decision, their control over their legacy.",
     category: "emotional",
     promptHint: "Frame the decision as empowering: 'You decide', 'Take control of your legacy', 'It's your choice to protect them'.",
+    masterOrder: 12,
+    section: "cta",
+    isCore: false,
   },
 ];
 

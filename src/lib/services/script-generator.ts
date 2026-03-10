@@ -16,6 +16,7 @@
 import type { Campaign } from "@/types";
 import type { AdConcept } from "@/types";
 import { isProviderConfigured, getProvider } from "@/lib/llm";
+import type { TriggerSequenceContext } from "@/lib/services/trigger-sequencer";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -24,6 +25,7 @@ export interface GenerateScriptInput {
   concept: AdConcept;
   durationSeconds?: number;
   customPrompt?: string;
+  triggerSequence?: TriggerSequenceContext;  // from trigger-sequencer
 }
 
 export interface GeneratedScript {
@@ -82,6 +84,14 @@ Additional rules:
 - Phone number must appear in the CTA.
 - STRICTLY hit the word count target in the prompt — this determines broadcast length. Shorter or longer scripts waste media budget.
 
+90-SECOND CTA RULES (apply only when duration is 90 seconds):
+- Phone number MUST appear exactly TWICE in the CTA section.
+- Immediately after the first mention, write: "Write that down." as its own sentence.
+- Between the two mentions: one emotional resolve line (guilt_avoidance or loss_aversion tone), then one final urgency line with specific deadline.
+- After the second mention: one simplicity or autonomy close ("The call is free." or similar).
+- Never place both phone mentions back-to-back without at least 4 words between them.
+30s and 60s scripts: phone number appears exactly ONCE, at the end of the CTA.
+
 Return a JSON object:
 {
   "versionName": "short version label",
@@ -94,6 +104,10 @@ No markdown fences, no commentary — only valid JSON.`;
 
 // ── Prompt builder ───────────────────────────────────────────────────────
 
+const DEFAULT_TRIGGER_HINT = `- Hook  → lead with Authority or Insider Knowledge; add Scarcity hint
+- Body  → weave in Loss Aversion, Guilt Avoidance, Social Proof, Simplicity, Affordability ($2/day), Value Disparity ($2 → {benefitAmount}), Legitimacy
+- CTA   → close with hard Urgency ({deadlineText}), Autonomy ("nobody will do this for you"), phone number`;
+
 // ~150 words per minute for a natural spoken pace
 const DURATION_GUIDE: Record<number, { words: number; hookSentences: string; bodySentences: string; ctaSentences: string }> = {
   30: { words: 75,  hookSentences: "1–2", bodySentences: "3–5",  ctaSentences: "1–2" },
@@ -104,6 +118,11 @@ const DURATION_GUIDE: Record<number, { words: number; hookSentences: string; bod
 function buildPrompt(input: GenerateScriptInput): string {
   const { campaign, concept, durationSeconds = 30, customPrompt } = input;
   const guide = DURATION_GUIDE[durationSeconds] ?? DURATION_GUIDE[30];
+
+  const fallbackHint = DEFAULT_TRIGGER_HINT
+    .replace("{benefitAmount}", campaign.benefitAmount ?? "$25,000")
+    .replace("{deadlineText}", campaign.deadlineText ?? "deadline");
+  const triggerBlock = input.triggerSequence?.sequenceText ?? fallbackHint;
 
   return `Campaign:
 - Persona: ${campaign.personaId ?? "general"}
@@ -130,9 +149,7 @@ Concept: "${concept.title}"
 - CTA direction: ${concept.cta ?? ""}
 
 Trigger layering guide:
-- Hook  → lead with Authority or Insider Knowledge; add Scarcity hint
-- Body  → weave in Loss Aversion, Guilt Avoidance, Social Proof, Simplicity, Affordability ($2/day), Value Disparity ($2 → ${campaign.benefitAmount ?? "$25,000"}), Legitimacy
-- CTA   → close with hard Urgency (${campaign.deadlineText ?? "deadline"}), Autonomy ("nobody will do this for you"), phone number
+${triggerBlock}
 
 ${customPrompt ? `\nSPECIAL INSTRUCTIONS (follow these exactly, they override defaults above):\n${customPrompt}\n` : ""}Write the script now. Hit the word count target.`;
 }
