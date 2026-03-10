@@ -15,6 +15,7 @@ export interface GeneratedAsset {
   sceneType: "A-roll" | "B-roll";
   shotIdea: string;
   imageUrl: string;
+  videoUrl?: string | null;
   imagePrompt: string;
   klingPrompt: string;
   createdAt: string;
@@ -135,6 +136,7 @@ export async function getGeneratedAssetsForCampaign(campaignId: string): Promise
             sceneType: (scene.sceneType === "A-roll" ? "A-roll" : "B-roll"),
             shotIdea: String(scene.shotIdea ?? ""),
             imageUrl: String(scene.generatedImageUrl),
+            videoUrl: scene.generatedVideoUrl ? String(scene.generatedVideoUrl) : null,
             imagePrompt: String(scene.imagePrompt ?? ""),
             klingPrompt: String(scene.klingPrompt ?? ""),
             createdAt: String(plan.created_at),
@@ -160,6 +162,7 @@ export async function getGeneratedAssetsForCampaign(campaignId: string): Promise
         sceneType: (scene.sceneType === "A-roll" ? "A-roll" : "B-roll"),
         shotIdea: String(scene.shotIdea ?? ""),
         imageUrl: String(scene.generatedImageUrl),
+        videoUrl: scene.generatedVideoUrl ? String(scene.generatedVideoUrl) : null,
         imagePrompt: String(scene.imagePrompt ?? ""),
         klingPrompt: String(scene.klingPrompt ?? ""),
         createdAt: String(plan.created_at),

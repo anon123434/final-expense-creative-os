@@ -562,13 +562,30 @@ export function SceneCardItem({ scene, onChange, campaignId, avatarId }: SceneCa
                     onClick={handleGenerateVideo}
                     disabled={!audioBase64 || generatingVideo || pollingVideoId !== null}
                     className={cn(
-                      "flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed py-3 text-xs font-medium transition-colors",
-                      "border-rose-200 text-rose-600 hover:bg-rose-50/50 hover:border-rose-300",
-                      "disabled:cursor-not-allowed disabled:opacity-50"
+                      "flex w-full flex-col items-center justify-center gap-1.5 rounded-lg border-2 py-3 text-xs font-medium transition-colors overflow-hidden",
+                      generatingVideo
+                        ? "border-rose-300 bg-rose-50/30 text-rose-600 cursor-not-allowed"
+                        : "border-dashed border-rose-200 text-rose-600 hover:bg-rose-50/50 hover:border-rose-300 disabled:cursor-not-allowed disabled:opacity-50"
                     )}
                   >
-                    <Video className={cn("h-4 w-4", generatingVideo && "animate-pulse")} />
-                    {generatingVideo ? `Generating… ${videoElapsed}s` : "Generate Talking Video"}
+                    <span className="flex items-center gap-2">
+                      <Video className={cn("h-4 w-4", generatingVideo && "animate-pulse")} />
+                      {generatingVideo ? `Generating… ${videoElapsed}s` : "Generate Talking Video"}
+                      {generatingVideo && (
+                        <span className="text-[10px] text-rose-400 font-normal">· ~60–90s</span>
+                      )}
+                    </span>
+                    {generatingVideo && (
+                      <div className="w-48 h-1 rounded-full bg-rose-100 overflow-hidden">
+                        <div
+                          className="h-full bg-rose-400 rounded-full"
+                          style={{
+                            width: `${Math.min(90, (videoElapsed / 90) * 90)}%`,
+                            transition: "width 1s ease-out",
+                          }}
+                        />
+                      </div>
+                    )}
                   </button>
 
                   {videoError && <p className="text-xs text-destructive">{videoError}</p>}

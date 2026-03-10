@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Film, Save, AlertCircle, ChevronDown, CheckCircle2, Circle, UserCircle, RefreshCw, Copy, Check, Download, Images } from "lucide-react";
+import { Film, Save, AlertCircle, ChevronDown, CheckCircle2, Circle, UserCircle, RefreshCw, Copy, Check, Download, Images, FolderDown, Video } from "lucide-react";
 import { useRef, useEffect } from "react";
 import type { Script, VisualPlan } from "@/types";
 import type { Avatar } from "@/types/avatar";
@@ -100,24 +100,33 @@ export function VisualPlanPanel({
           newScenes
         );
         // Optimistically add to left column assets
-        setAssets(a => [
-          {
-            planId: plan.id,
-            sceneNumber: updated.sceneNumber,
-            sceneType: updated.sceneType,
-            shotIdea: updated.shotIdea,
-            imageUrl: updated.generatedImageUrl!,
-            imagePrompt: updated.imagePrompt,
-            klingPrompt: updated.klingPrompt,
-            createdAt: new Date().toISOString(),
-          },
-          ...a.filter(x => !(x.planId === plan.id && x.sceneNumber === updated.sceneNumber)),
-        ]);
+        setAssets(a => {
+          const existing = a.find(x => x.planId === plan.id && x.sceneNumber === updated.sceneNumber);
+          return [
+            {
+              planId: plan.id,
+              sceneNumber: updated.sceneNumber,
+              sceneType: updated.sceneType,
+              shotIdea: updated.shotIdea,
+              imageUrl: updated.generatedImageUrl!,
+              videoUrl: existing?.videoUrl ?? updated.generatedVideoUrl ?? null,
+              imagePrompt: updated.imagePrompt,
+              klingPrompt: updated.klingPrompt,
+              createdAt: new Date().toISOString(),
+            },
+            ...a.filter(x => !(x.planId === plan.id && x.sceneNumber === updated.sceneNumber)),
+          ];
+        });
       }
 
-      // Auto-save to DB when a new generated video URL lands
+      // Auto-save to DB when a new generated video URL lands + update asset in panel
       if (updated.generatedVideoUrl && updated.generatedVideoUrl !== prevScene?.generatedVideoUrl && scriptId && plan) {
         void saveVisualPlanAction(campaignId, scriptId, overallDirection, baseLayer, plan.aRoll ?? [], plan.bRoll ?? [], newScenes);
+        setAssets(a => a.map(x =>
+          x.planId === plan.id && x.sceneNumber === updated.sceneNumber
+            ? { ...x, videoUrl: updated.generatedVideoUrl! }
+            : x
+        ));
       }
 
       return newScenes;
@@ -160,6 +169,9 @@ export function VisualPlanPanel({
           <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
             Assets {assets.length > 0 && `· ${assets.length}`}
           </span>
+          {assets.length > 0 && (
+            <DownloadAllButton assets={assets} campaignId={campaignId} />
+          )}
         </div>
         <div className="flex-1 overflow-y-auto">
           {assets.length === 0 ? (
@@ -515,12 +527,19 @@ function AssetTile({ asset }: { asset: GeneratedAsset }) {
         onClick={() => setOpen((v) => !v)}
         className="w-full p-2.5 text-left hover:bg-muted/40 transition-colors"
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={asset.imageUrl}
-          alt={asset.shotIdea}
-          className="w-full aspect-video object-cover rounded border border-border mb-1.5"
-        />
+        <div className="relative mb-1.5">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={asset.imageUrl}
+            alt={asset.shotIdea}
+            className="w-full aspect-video object-cover rounded border border-border"
+          />
+          {asset.videoUrl && (
+            <span className="absolute bottom-1 right-1 flex items-center gap-0.5 rounded bg-black/70 px-1 py-0.5 text-[9px] font-semibold text-white">
+              <Video className="h-2.5 w-2.5" /> Video
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-1.5">
           <span className={cn(
             "text-[9px] font-semibold uppercase tracking-wider px-1 py-0.5 rounded",
@@ -539,10 +558,62 @@ function AssetTile({ asset }: { asset: GeneratedAsset }) {
         <div className="px-2.5 pb-3 space-y-2">
           <AssetPromptBlock label="Image Prompt" value={asset.imagePrompt} />
           <AssetPromptBlock label="Kling 3.0 Prompt" value={asset.klingPrompt} />
-          <AssetDownloadButton url={asset.imageUrl} filename={`scene-${asset.sceneNumber}.jpg`} />
+          <div className="flex items-center gap-1.5">
+            <AssetDownloadButton url={asset.imageUrl} filename={`scene-${asset.sceneNumber}.jpg`} label="Image" />
+            {asset.videoUrl && (
+              <AssetDownloadButton url={asset.videoUrl} filename={`scene-${asset.sceneNumber}-talking.mp4`} label="Video" />
+            )}
+          </div>
         </div>
       )}
     </div>
+  );
+}
+
+function DownloadAllButton({ assets, campaignId }: { assets: GeneratedAsset[]; campaignId: string }) {
+  const [downloading, setDownloading] = useState(false);
+
+  async function handleDownloadAll() {
+    if (downloading) return;
+    setDownloading(true);
+    for (const asset of assets) {
+      const urls: Array<{ url: string; filename: string }> = [
+        { url: asset.imageUrl, filename: `campaign-${campaignId}-scene-${asset.sceneNumber}.jpg` },
+      ];
+      if (asset.videoUrl) {
+        urls.push({ url: asset.videoUrl, filename: `campaign-${campaignId}-scene-${asset.sceneNumber}-talking.mp4` });
+      }
+      for (const { url, filename } of urls) {
+        try {
+          const res = await fetch(url);
+          const blob = await res.blob();
+          const objectUrl = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = objectUrl;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(objectUrl);
+          // Small delay between downloads to avoid browser throttling
+          await new Promise<void>((r) => setTimeout(r, 400));
+        } catch { /* skip failed downloads */ }
+      }
+    }
+    setDownloading(false);
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleDownloadAll}
+      disabled={downloading}
+      title="Download all assets"
+      className="ml-auto flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-50"
+    >
+      <FolderDown className="h-3 w-3" />
+      {downloading ? "…" : "All"}
+    </button>
   );
 }
 
@@ -574,7 +645,7 @@ function AssetPromptBlock({ label, value }: { label: string; value: string }) {
   );
 }
 
-function AssetDownloadButton({ url, filename }: { url: string; filename: string }) {
+function AssetDownloadButton({ url, filename, label = "Download" }: { url: string; filename: string; label?: string }) {
   async function handleDownload() {
     try {
       const res = await fetch(url);
@@ -596,7 +667,7 @@ function AssetDownloadButton({ url, filename }: { url: string; filename: string 
       className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/50 px-2 py-1 text-[10px] font-medium text-muted-foreground hover:bg-muted transition-colors"
     >
       <Download className="h-3 w-3" />
-      Download
+      {label}
     </button>
   );
 }
