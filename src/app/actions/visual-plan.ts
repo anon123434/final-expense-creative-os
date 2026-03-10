@@ -7,7 +7,7 @@ import { getAvatarById } from "@/lib/repositories/avatar-repo";
 import { upsertVisualPlan } from "@/lib/repositories/visual-plan-repo";
 import { generateVisualPlan } from "@/lib/services/visual-plan-generator";
 import { generateSingleImage, uploadGeneratedImage } from "@/lib/services/gemini-image";
-import { hasGeminiKey, resolveHeyGenApiKey } from "@/lib/config/env";
+import { hasGeminiKey, resolveHeyGenApiKey, getSupabaseUrl } from "@/lib/config/env";
 import type { FailResult } from "@/lib/result";
 import { actionFail, actionOk, type ActionResult } from "@/lib/result";
 import type { VisualPlan } from "@/types";
@@ -215,6 +215,18 @@ export async function generateTalkingVideoAction(
     const apiKey = resolveHeyGenApiKey();
     if (!apiKey) return actionFail(null, "No HeyGen API key configured. Add one in Settings.");
 
+    // Validate imageUrl against the Supabase storage origin to prevent SSRF
+    const supabaseUrl = getSupabaseUrl();
+    if (supabaseUrl && !imageUrl.startsWith(supabaseUrl)) {
+      return actionFail(null, "Invalid image URL.");
+    }
+
+    // Validate audioMimeType against an allowlist
+    const ALLOWED_AUDIO_TYPES = ["audio/mpeg", "audio/wav", "audio/ogg", "audio/mp4", "audio/webm"];
+    if (!ALLOWED_AUDIO_TYPES.includes(audioMimeType)) {
+      return actionFail(null, "Unsupported audio format. Use MP3, WAV, OGG, MP4, or WebM.");
+    }
+
     // 1. Fetch still image from Supabase and upload to HeyGen
     const imgRes = await fetch(imageUrl);
     if (!imgRes.ok) throw new Error(`Image fetch failed: ${imgRes.status}`);
@@ -225,6 +237,7 @@ export async function generateTalkingVideoAction(
       headers: { "X-API-KEY": apiKey, "Content-Type": "image/jpeg" },
       body: imgBuf,
     });
+    if (!imgUpload.ok) throw new Error(`HeyGen image upload HTTP ${imgUpload.status}`);
     const imgData = await imgUpload.json();
     if (imgData.code !== 100) throw new Error(`HeyGen image upload failed: ${JSON.stringify(imgData)}`);
     const talkingPhotoId: string = imgData.data.image_key;
@@ -236,6 +249,7 @@ export async function generateTalkingVideoAction(
       headers: { "X-API-KEY": apiKey, "Content-Type": audioMimeType },
       body: audioBuf,
     });
+    if (!audioUpload.ok) throw new Error(`HeyGen audio upload HTTP ${audioUpload.status}`);
     const audioData = await audioUpload.json();
     if (audioData.code !== 100) throw new Error(`HeyGen audio upload failed: ${JSON.stringify(audioData)}`);
     const audioAssetId: string = audioData.data.id;
@@ -246,6 +260,7 @@ export async function generateTalkingVideoAction(
       headers: { "X-API-KEY": apiKey, "Content-Type": "application/json" },
       body: JSON.stringify({ talking_photo_id: talkingPhotoId, audio_asset_id: audioAssetId }),
     });
+    if (!videoRes.ok) throw new Error(`HeyGen video create HTTP ${videoRes.status}`);
     const videoData = await videoRes.json();
     if (videoData.code !== 100) throw new Error(`HeyGen video create failed: ${JSON.stringify(videoData)}`);
 
@@ -268,6 +283,7 @@ export async function checkVideoStatusAction(
       `https://api.heygen.com/v1/video_status.get?video_id=${videoId}`,
       { headers: { "X-API-KEY": apiKey } }
     );
+    if (!res.ok) throw new Error(`HeyGen status check HTTP ${res.status}`);
     const data = await res.json();
     if (data.code !== 100) throw new Error(`HeyGen status check failed: ${JSON.stringify(data)}`);
 
