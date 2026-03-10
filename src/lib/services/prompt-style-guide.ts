@@ -54,6 +54,51 @@ export function buildImagePrompt(
   ].join(" ");
 }
 
+// ── Reusable performance patterns ──────────────────────────────────────────
+
+/**
+ * Phone Listening Beat — B-roll performance direction.
+ *
+ * Apply automatically when a scene shows the avatar (or spokesperson) on the
+ * phone and the other party is speaking. Covers the full listening arc:
+ * attentive silence → understanding → quiet agreement → subtle relief.
+ */
+export const PHONE_LISTENING_BEAT = {
+  /**
+   * Image still: captures the attentive listening moment mid-beat.
+   * Append to sceneDescription before passing to buildImagePrompt().
+   */
+  imageDirection:
+    "Avatar on phone, listening attentively. Phone held naturally to ear. " +
+    "Expression: quiet focus, slight attentive lean, eyes soft and present. " +
+    "No speaking — mid-listen. Subtle suggestion of relief beginning to show.",
+
+  /**
+   * Kling motion: full arc from listening → agreement → relief.
+   * Use as the motionDescription in buildKlingPrompt().
+   */
+  klingMotion:
+    "Avatar listens in silence as the other person speaks. " +
+    "Performance arc: attentive stillness → one or two small slow nods → " +
+    "tiny natural facial reactions showing understanding → quiet agreement. " +
+    "Near the end: expression softens noticeably — a subtle exhale, " +
+    "slight shoulder release, or small relaxing gesture signals relief. " +
+    "All movement minimal and involuntary-feeling. Very slow push-in on face.",
+} as const;
+
+/**
+ * Detects whether a scene description likely involves a phone listening beat.
+ * Used by generators to auto-apply PHONE_LISTENING_BEAT.
+ */
+export function isPhoneListeningScene(text: string): boolean {
+  const lower = text.toLowerCase();
+  return (
+    (lower.includes("phone") || lower.includes("call") || lower.includes("calling")) &&
+    (lower.includes("listen") || lower.includes("relief") || lower.includes("agent") ||
+     lower.includes("speaking") || lower.includes("hears") || lower.includes("answer"))
+  );
+}
+
 // ── Kling ──────────────────────────────────────────────────────────────────
 
 const KLING_RULES = [

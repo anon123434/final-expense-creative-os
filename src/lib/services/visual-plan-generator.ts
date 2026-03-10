@@ -14,7 +14,7 @@
 
 import type { Campaign } from "@/types";
 import type { SceneCard } from "@/types/scene";
-import { buildImagePrompt, buildKlingPrompt } from "./prompt-style-guide";
+import { buildImagePrompt, buildKlingPrompt, PHONE_LISTENING_BEAT } from "./prompt-style-guide";
 import { generateTextWithOpenAI, isProviderConfigured } from "@/lib/llm";
 
 // ── Service types ──────────────────────────────────────────────────────────
@@ -136,13 +136,11 @@ const BODY_TEMPLATES: SceneTemplate[] = [
   {
     sceneType: "B-roll",
     setting: "kitchen, morning",
-    shotIdea: "woman on phone, relief washing over her face",
+    shotIdea: "avatar on phone, listening to agent explain coverage — relief washing over their face",
     emotion: "relief, hope, resolution",
     cameraStyle: "50mm medium shot, slow push-in on face",
-    imageSuffix:
-      "woman on phone in a modest kitchen, expression shifting to relief and calm, warm morning window light",
-    klingSuffix:
-      "The woman listens to the phone, her expression shifting from anxious to visibly relieved. A slow exhale. Very slow push-in.",
+    imageSuffix: PHONE_LISTENING_BEAT.imageDirection,
+    klingSuffix: PHONE_LISTENING_BEAT.klingMotion,
   },
 ];
 
@@ -194,6 +192,13 @@ IMPORTANT RULES:
 - B-roll scenes should feel observational and candid.
 - Build an emotional arc across the scene sequence.
 - No markdown fences, no commentary — only valid JSON.
+
+PHONE LISTENING BEAT (apply automatically):
+- Whenever a scene involves the avatar or spokesperson on a phone call where the other party is speaking, apply the following performance direction verbatim in both image_prompt and kling_prompt:
+  IMAGE: "Avatar on phone, listening attentively. Phone held naturally to ear. Expression: quiet focus, slight attentive lean, eyes soft and present. No speaking — mid-listen. Subtle suggestion of relief beginning to show."
+  KLING: "Avatar listens in silence as the other person speaks. Performance arc: attentive stillness → one or two small slow nods → tiny natural facial reactions showing understanding → quiet agreement. Near the end: expression softens noticeably — a subtle exhale, slight shoulder release, or small relaxing gesture signals relief. All movement minimal and involuntary-feeling. Very slow push-in on face."
+- This beat applies to B-roll scenes where the subject is receiving good news, hearing an agent explain coverage, or experiencing any phone-based relief moment.
+- Always keep this beat as B-roll (sceneType: "B-roll") since it is observational and candid.
 
 AVATAR LIKENESS RULES (when an avatar description is provided):
 - Every A-roll image_prompt MUST begin with the exact avatar description verbatim, followed by the scene details.
