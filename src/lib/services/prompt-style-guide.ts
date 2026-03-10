@@ -159,9 +159,9 @@ export const APPROVAL_LETTER_BEAT = {
    * Append to sceneDescription before passing to buildImagePrompt().
    */
   imageDirection:
-    "Avatar holds an open letter or document at reading distance, side profile, 3/4 angle. " +
-    "Document tilted toward camera, filling 40–50% of frame. " +
-    "Avatar's shoulder and side profile visible at frame edge. " +
+    "Avatar holds a standard letter-sized piece of paper at natural reading distance, shot from behind the avatar's shoulder. " +
+    "Camera positioned behind and slightly to the side — only the avatar's partial side profile visible at the near frame edge. " +
+    "The paper is proportional to the person — normal 8.5x11 sheet, NOT oversized. Paper occupies roughly 15–20% of the frame. " +
     "Expression: focused and still — mid-read, eyes tracking across the page. " +
     "Warm interior light. Medium shot.",
 

@@ -169,9 +169,9 @@ const BODY_TEMPLATES: SceneTemplate[] = [
   {
     sceneType: "B-roll",
     setting: "living room, soft afternoon light",
-    shotIdea: "avatar reads approval letter confirming coverage, side profile, focused and still",
+    shotIdea: "avatar reads approval letter confirming coverage, shot from behind the shoulder — only partial side profile visible, focused and still",
     emotion: "focused reading transitioning to quiet acceptance",
-    cameraStyle: "50mm medium shot, 3/4 angle, very slow push-in toward document",
+    cameraStyle: "50mm medium shot, back shoulder view, very slow push-in toward document",
     imageSuffix: `${APPROVAL_LETTER_BEAT.imageDirection}`,
     klingSuffix: APPROVAL_LETTER_BEAT.klingMotion,
   },
@@ -248,7 +248,7 @@ APPROVAL LETTER BEAT (apply automatically):
 - Whenever a scene involves the avatar reading an approval letter, acceptance document, or coverage confirmation, apply the following rules:
   1. sceneType MUST be "B-roll".
   2. (Pipeline note: useDocumentReference is set automatically by the server — you do not need to include this field in your JSON output.)
-  3. The image_prompt MUST show the avatar in side profile reading the letter at reading distance so the document fills 40–50% of the frame. Start with: "Avatar holds an open letter or document at reading distance, side profile, 3/4 angle. Document tilted toward camera, filling 40–50% of frame."
+  3. The image_prompt MUST show the avatar from behind the shoulder — camera positioned behind and slightly to the side, only the avatar's partial side profile visible at the near frame edge. The letter must be a normal 8.5x11 sheet of paper, proportional to the person — NOT oversized. Start with: "Avatar holds a standard letter-sized piece of paper at natural reading distance, shot from behind the avatar's shoulder. Camera positioned behind and slightly to the side — only the avatar's partial side profile visible at the near frame edge. The paper is proportional to the person — normal 8.5x11 sheet, NOT oversized, occupying roughly 15–20% of the frame."
   4. Append the full performance direction: "Expression: focused and still — mid-read, eyes tracking across the page. Warm interior light. Medium shot."
   5. The kling_prompt MUST describe this arc: "Avatar reads the letter silently. Eyes track slowly across the page. A small still pause — expression held. Then expression softens — a quiet exhale or the shoulders drop very slightly. One slow nod of acceptance. No large gestures. Very slow push-in toward the document."
 - CRITICAL: When documentReferenceUrl is set on this scene, the EXACT document image will be the first reference passed to the image generator. The generated image must treat it as a photographic reproduction, not invent a generic letter.
@@ -532,9 +532,9 @@ function buildDocumentScenes(startNumber: number, avatarPrefix: string): SceneCa
       lineReference: "Reading the approval letter",
       sceneType: "B-roll",
       setting: "living room, soft afternoon light",
-      shotIdea: "avatar reads approval letter confirming coverage, side profile, focused and still",
+      shotIdea: "avatar reads approval letter confirming coverage, shot from behind the shoulder — only partial side profile visible, focused and still",
       emotion: "focused reading transitioning to quiet acceptance",
-      cameraStyle: "50mm medium shot, 3/4 angle, very slow push-in toward document",
+      cameraStyle: "50mm medium shot, back shoulder view, very slow push-in toward document",
       imagePrompt: buildImagePrompt(
         `${avatarPrefix}${APPROVAL_LETTER_BEAT.imageDirection}`,
         false
