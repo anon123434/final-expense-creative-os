@@ -4,14 +4,14 @@ import { revalidatePath } from "next/cache";
 import { getCampaignById, getTriggersByCampaign } from "@/lib/repositories/campaign-repo";
 import { getConceptsByCampaign } from "@/lib/repositories/concept-repo";
 import { upsertScript } from "@/lib/repositories/script-repo";
-import { generateScript } from "@/lib/services/script-generator";
+import { generateScript, generateHookVariations } from "@/lib/services/script-generator";
 import { buildTriggerSequence } from "@/lib/services/trigger-sequencer";
 import { generateVOScript } from "@/lib/services/vo-script-generator";
 import { applyTransform } from "@/lib/services/script-transforms";
 import type { ScriptTransform } from "@/lib/services/script-transforms";
 import type { FailResult } from "@/lib/result";
-import { actionFail } from "@/lib/result";
-import type { Script } from "@/types";
+import { actionFail, actionOk, type ActionResult } from "@/lib/result";
+import type { Script, HookVariant } from "@/types/script";
 import { loadUserKeys } from "./_load-keys";
 
 // ── Generate ───────────────────────────────────────────────────────────────
@@ -115,6 +115,33 @@ export async function applyTransformAction(
   } catch (err) {
     console.error("applyTransformAction:", err);
     return actionFail(err, "Failed to apply transform.");
+  }
+}
+
+// ── Hook Variations ────────────────────────────────────────────────────────
+
+export async function generateHookVariationsAction(
+  campaignId: string,
+  conceptId: string,
+  currentHook: string,
+  body: string,
+  cta: string
+): Promise<ActionResult<{ hooks: HookVariant[] }>> {
+  try {
+    await loadUserKeys();
+    const [campaign, concepts] = await Promise.all([
+      getCampaignById(campaignId),
+      getConceptsByCampaign(campaignId),
+    ]);
+    if (!campaign) return actionFail(null, "Campaign not found.");
+    const concept = concepts.find((c) => c.id === conceptId);
+    if (!concept) return actionFail(null, "Concept not found.");
+
+    const hooks = await generateHookVariations({ campaign, concept, currentHook, body, cta });
+    return actionOk({ hooks });
+  } catch (err) {
+    console.error("generateHookVariationsAction:", err);
+    return actionFail(err, "Failed to generate hook variations.");
   }
 }
 

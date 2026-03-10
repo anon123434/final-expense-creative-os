@@ -1,14 +1,16 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Film, Save, AlertCircle, ChevronDown, CheckCircle2, Circle, UserCircle, RefreshCw, Copy, Check, Download, Images, FolderDown, Video, Sparkles } from "lucide-react";
+import { Film, Save, AlertCircle, ChevronDown, CheckCircle2, Circle, UserCircle, RefreshCw, Copy, Check, Download, Images, FolderDown, Video, Sparkles, Plus, X, Users } from "lucide-react";
 import { useRef, useEffect } from "react";
 import type { Script, VisualPlan } from "@/types";
 import type { Avatar } from "@/types/avatar";
 import type { SceneCard } from "@/types/scene";
 import type { GeneratedAsset } from "@/lib/repositories/visual-plan-repo";
+import type { CampaignCharacter } from "@/types/campaign-character";
 import { SceneCardItem } from "./scene-card";
 import { generateVisualPlanAction, saveVisualPlanAction, generateMoreBRollAction } from "@/app/actions/visual-plan";
+import { createCharacterAction, deleteCharacterAction } from "@/app/actions/campaign-characters";
 import { AvatarPickerModal } from "@/components/avatars/avatar-picker-modal";
 import { cn } from "@/lib/utils";
 import { ProviderBadge } from "@/components/ui/provider-badge";
@@ -20,6 +22,7 @@ interface VisualPlanPanelProps {
   initialScriptId: string | null;
   initialAvatar?: Avatar | null;
   initialAssets?: GeneratedAsset[];
+  initialCharacters?: CampaignCharacter[];
 }
 
 export function VisualPlanPanel({
@@ -29,8 +32,10 @@ export function VisualPlanPanel({
   initialScriptId,
   initialAvatar,
   initialAssets = [],
+  initialCharacters = [],
 }: VisualPlanPanelProps) {
   const [avatar, setAvatar] = useState<Avatar | null>(initialAvatar ?? null);
+  const [characters, setCharacters] = useState<CampaignCharacter[]>(initialCharacters);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [scriptId, setScriptId] = useState<string | null>(initialScriptId);
   const [plan, setPlan] = useState<VisualPlan | null>(initialPlan);
@@ -332,6 +337,13 @@ export function VisualPlanPanel({
                     </section>
                   )}
 
+                  {/* Supporting characters roster */}
+                  <CharacterRoster
+                    campaignId={campaignId}
+                    characters={characters}
+                    onCharactersChange={setCharacters}
+                  />
+
                   {/* Scene breakdown */}
                   <section className="space-y-2">
                     <div className="flex items-center justify-between">
@@ -348,6 +360,7 @@ export function VisualPlanPanel({
                           onChange={handleSceneChange}
                           campaignId={campaignId}
                           avatarId={avatar?.id ?? null}
+                          characters={characters}
                         />
                       ))}
                     </div>
@@ -408,6 +421,179 @@ export function VisualPlanPanel({
         </div>
       </div>
     </div>
+  );
+}
+
+// ── Character roster ───────────────────────────────────────────────────────
+
+function CharacterRoster({
+  campaignId,
+  characters,
+  onCharactersChange,
+}: {
+  campaignId: string;
+  characters: CampaignCharacter[];
+  onCharactersChange: (chars: CampaignCharacter[]) => void;
+}) {
+  const [adding, setAdding] = useState(false);
+  const [name, setName] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [pendingFile, setPendingFile] = useState<{ base64: string; mimeType: string } | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const objectUrl = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      const MAX = 1200;
+      const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.88);
+      setPendingFile({ base64: dataUrl.split(",")[1], mimeType: "image/jpeg" });
+      setPreviewUrl(dataUrl);
+    };
+    img.src = objectUrl;
+    e.target.value = "";
+  }
+
+  async function handleAdd() {
+    if (!name.trim() || !pendingFile) return;
+    setUploading(true);
+    setUploadError(null);
+    const result = await createCharacterAction(campaignId, name.trim(), pendingFile.base64, pendingFile.mimeType);
+    setUploading(false);
+    if (result.success) {
+      onCharactersChange([...characters, result.data.character]);
+      setAdding(false);
+      setName("");
+      setPendingFile(null);
+      setPreviewUrl(null);
+    } else {
+      setUploadError(result.error);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    const result = await deleteCharacterAction(id, campaignId);
+    if (result.success) {
+      onCharactersChange(characters.filter((c) => c.id !== id));
+    }
+  }
+
+  return (
+    <section className="space-y-2">
+      <div className="flex items-center gap-2">
+        <Users className="h-3.5 w-3.5 text-muted-foreground" />
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Supporting Characters
+        </p>
+        <button
+          type="button"
+          onClick={() => setAdding((v) => !v)}
+          className="ml-auto inline-flex items-center gap-1 rounded-md border border-border px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:border-primary/40 hover:text-foreground transition-colors"
+        >
+          <Plus className="h-3 w-3" />
+          Add
+        </button>
+      </div>
+
+      {/* Existing characters */}
+      {characters.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {characters.map((c) => (
+            <div
+              key={c.id}
+              className="flex items-center gap-2 rounded-lg border border-white/8 bg-[#0d0d0d] px-2 py-1.5"
+            >
+              {c.referenceImageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={c.referenceImageUrl}
+                  alt={c.name}
+                  className="h-7 w-7 rounded-full object-cover border border-white/10"
+                />
+              ) : (
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-white/8 border border-white/10">
+                  <UserCircle className="h-4 w-4 text-muted-foreground" />
+                </div>
+              )}
+              <span className="text-xs font-medium text-foreground/80">{c.name}</span>
+              <button
+                type="button"
+                onClick={() => handleDelete(c.id)}
+                className="ml-1 rounded p-0.5 text-muted-foreground hover:text-destructive transition-colors"
+                aria-label={`Remove ${c.name}`}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Add form */}
+      {adding && (
+        <div className="rounded-lg border border-white/8 bg-[#0d0d0d] p-3 space-y-2.5">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            New Character
+          </p>
+          <input
+            type="text"
+            placeholder="Name (e.g. Husband, Daughter)"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full rounded-md border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+          />
+          <div className="flex items-center gap-2">
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:border-primary/40 hover:text-foreground transition-colors"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              {previewUrl ? "Change Photo" : "Upload Photo"}
+            </button>
+            {previewUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={previewUrl} alt="Preview" className="h-8 w-8 rounded-full object-cover border border-white/10" />
+            )}
+          </div>
+          {uploadError && <p className="text-[11px] text-destructive">{uploadError}</p>}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={!name.trim() || !pendingFile || uploading}
+              onClick={handleAdd}
+              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary/90 transition-colors"
+            >
+              {uploading ? "Saving…" : "Save Character"}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setAdding(false); setName(""); setPendingFile(null); setPreviewUrl(null); setUploadError(null); }}
+              className="inline-flex items-center rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {characters.length === 0 && !adding && (
+        <p className="text-[11px] text-muted-foreground/40">
+          Add reference photos for people mentioned in scenes (husband, daughter, etc.) so Gemini can reproduce their likeness.
+        </p>
+      )}
+    </section>
   );
 }
 

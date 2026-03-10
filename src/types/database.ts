@@ -298,3 +298,11 @@ export interface AvatarUpdate {
   image_urls?: string[];
   avatar_id?: string | null;
 }
+
+export interface CampaignCharacterRow {
+  id: string;
+  campaign_id: string;
+  name: string;
+  reference_image_url: string | null;
+  created_at: string;
+}

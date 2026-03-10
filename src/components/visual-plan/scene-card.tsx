@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { ChevronDown, ChevronUp, Copy, Check, Clapperboard, Camera, Sparkles, Download, UserCircle, FileImage, Mic, Video } from "lucide-react";
 import type { SceneCard } from "@/types/scene";
+import type { CampaignCharacter } from "@/types/campaign-character";
 import { cn } from "@/lib/utils";
 import { generateSceneImageAction, uploadDocumentAssetAction, generateTalkingVideoAction, checkVideoStatusAction } from "@/app/actions/visual-plan";
 
@@ -11,11 +12,12 @@ interface SceneCardProps {
   onChange: (updated: SceneCard) => void;
   campaignId: string;
   avatarId?: string | null;
+  characters?: CampaignCharacter[];
 }
 
 type EditableField = keyof Omit<SceneCard, "sceneNumber" | "sceneType" | "useAvatarReference" | "generatedImageUrl">;
 
-export function SceneCardItem({ scene, onChange, campaignId, avatarId }: SceneCardProps) {
+export function SceneCardItem({ scene, onChange, campaignId, avatarId, characters = [] }: SceneCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [generatingImage, setGeneratingImage] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
@@ -56,7 +58,8 @@ export function SceneCardItem({ scene, onChange, campaignId, avatarId }: SceneCa
       scene.sceneNumber,
       scene.imagePrompt,
       useRef ? avatarId : null,
-      scene.documentReferenceUrl ?? null
+      scene.documentReferenceUrl ?? null,
+      scene.characterIds ?? []
     );
     clearInterval(timer);
     setGeneratingImage(false);
@@ -312,6 +315,34 @@ export function SceneCardItem({ scene, onChange, campaignId, avatarId }: SceneCa
           </span>
         )}
 
+        {/* Tagged character thumbnails in header */}
+        {!expanded && (scene.characterIds ?? []).length > 0 && characters.length > 0 && (
+          <div className="mt-0.5 flex -space-x-1 shrink-0">
+            {(scene.characterIds ?? []).slice(0, 3).map((cid) => {
+              const c = characters.find((ch) => ch.id === cid);
+              if (!c) return null;
+              return c.referenceImageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  key={cid}
+                  src={c.referenceImageUrl}
+                  alt={c.name}
+                  title={c.name}
+                  className="h-5 w-5 rounded-full object-cover border border-background ring-1 ring-[#00E676]/40"
+                />
+              ) : (
+                <span
+                  key={cid}
+                  title={c.name}
+                  className="h-5 w-5 rounded-full bg-[#00E676]/10 border border-background ring-1 ring-[#00E676]/40 flex items-center justify-center text-[8px] text-[#00E676] font-bold"
+                >
+                  {c.name[0]}
+                </span>
+              );
+            })}
+          </div>
+        )}
+
         {/* Generated image thumbnail in header */}
         {scene.generatedImageUrl && !expanded && (
           // eslint-disable-next-line @next/next/no-img-element
@@ -423,6 +454,51 @@ export function SceneCardItem({ scene, onChange, campaignId, avatarId }: SceneCa
                   </button>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Characters in this scene */}
+          {characters.length > 0 && (
+            <div className="space-y-1.5">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Characters in Scene
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {characters.map((c) => {
+                  const active = (scene.characterIds ?? []).includes(c.id);
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => {
+                        const ids = scene.characterIds ?? [];
+                        onChange({
+                          ...scene,
+                          characterIds: active
+                            ? ids.filter((id) => id !== c.id)
+                            : [...ids, c.id],
+                        });
+                      }}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors",
+                        active
+                          ? "border-[#00E676]/40 bg-[#00E676]/8 text-[#00E676]"
+                          : "border-white/10 bg-white/4 text-muted-foreground hover:border-white/20"
+                      )}
+                    >
+                      {c.referenceImageUrl && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={c.referenceImageUrl}
+                          alt={c.name}
+                          className="h-4 w-4 rounded-full object-cover"
+                        />
+                      )}
+                      {c.name}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
 

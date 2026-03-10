@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Sparkles, Save, AlertCircle, Mic, Copy, Check, Cpu, Bot } from "lucide-react";
+import { Sparkles, Save, AlertCircle, Mic, Copy, Check, Cpu, Bot, Lightbulb, ChevronDown, ChevronUp } from "lucide-react";
 import type { AdConcept, Script } from "@/types";
 import type { Campaign } from "@/types";
+import type { HookVariant } from "@/types/script";
 import type { ScriptTransform } from "@/lib/services/script-transforms";
 import { ConceptPicker } from "./concept-picker";
 import { QuickActions } from "./quick-actions";
-import { generateScriptAction, applyTransformAction, saveScriptAction } from "@/app/actions/script";
+import { generateScriptAction, applyTransformAction, saveScriptAction, generateHookVariationsAction } from "@/app/actions/script";
 import { cn } from "@/lib/utils";
 import { ProviderBadge } from "@/components/ui/provider-badge";
 
@@ -50,9 +51,14 @@ export function ScriptPanel({
   const [copied, setCopied] = useState(false);
   const [genStatus, setGenStatus] = useState<{ scriptProvider: string; voProvider: string } | null>(null);
 
+  const [hookVariants, setHookVariants] = useState<HookVariant[]>([]);
+  const [hookLabOpen, setHookLabOpen] = useState(false);
+  const [hookLabError, setHookLabError] = useState<string | null>(null);
+
   const [generating, startGenerating] = useTransition();
   const [transforming, startTransforming] = useTransition();
   const [saving, startSaving] = useTransition();
+  const [generatingHooks, startGeneratingHooks] = useTransition();
 
   const loading = generating || transforming || saving;
 
@@ -125,6 +131,28 @@ export function ScriptPanel({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
+  }
+
+  function handleGenerateHooks() {
+    if (!conceptId || !hasScript) return;
+    setHookLabError(null);
+    const { hook, body, cta } = parseFullScript(fullScript);
+    startGeneratingHooks(async () => {
+      const result = await generateHookVariationsAction(campaign.id, conceptId, hook, body, cta);
+      if (result.success) {
+        setHookVariants(result.data.hooks);
+        setHookLabOpen(true);
+      } else {
+        setHookLabError(result.error);
+      }
+    });
+  }
+
+  function handleUseHook(newHook: string) {
+    const { body, cta } = parseFullScript(fullScript);
+    setFullScript([newHook, body, cta].filter(Boolean).join("\n\n"));
+    setIsDirty(true);
+    setSaveStatus("idle");
   }
 
   return (
@@ -278,6 +306,93 @@ export function ScriptPanel({
               loading={transforming}
               activeTransform={activeTransform}
             />
+          </section>
+
+          {/* Hook Lab */}
+          <section className="space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Hook Lab
+              </p>
+              <button
+                type="button"
+                onClick={handleGenerateHooks}
+                disabled={loading || generatingHooks}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium",
+                  "border border-border hover:bg-accent",
+                  "disabled:cursor-not-allowed disabled:opacity-50"
+                )}
+              >
+                <Lightbulb className={cn("h-3.5 w-3.5", generatingHooks && "animate-pulse")} />
+                {generatingHooks ? "Generating…" : "Generate Hook Ideas"}
+              </button>
+            </div>
+
+            {hookLabError && (
+              <p className="text-xs text-destructive">{hookLabError}</p>
+            )}
+
+            {hookVariants.length > 0 && (
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => setHookLabOpen((v) => !v)}
+                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {hookLabOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                  {hookLabOpen ? "Hide" : "Show"} {hookVariants.length} hook variations
+                </button>
+
+                {hookLabOpen && (
+                  <div className="space-y-2">
+                    {hookVariants.map((v, i) => (
+                      <div key={i} className="rounded-lg border bg-background p-3 space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="space-y-1.5 flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold border-violet-200 bg-violet-50 text-violet-700">
+                                {v.hookType}
+                              </span>
+                              {v.triggers.map((t) => (
+                                <span key={t} className="text-[10px] text-muted-foreground">· {t}</span>
+                              ))}
+                            </div>
+                            <p className="text-sm leading-snug">{v.hook}</p>
+                            <p className="text-[11px] text-muted-foreground italic">{v.emotionalCore}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleUseHook(v.hook)}
+                            className={cn(
+                              "shrink-0 inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium whitespace-nowrap",
+                              "bg-primary text-primary-foreground hover:bg-primary/90"
+                            )}
+                          >
+                            Use →
+                          </button>
+                        </div>
+                        {v.visualMoments.length > 0 && (
+                          <div className="border-t pt-2 space-y-1">
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                              Visual Moments
+                            </p>
+                            <ul className="space-y-0.5">
+                              {v.visualMoments.map((m, j) => (
+                                <li key={j} className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
+                                  <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" />
+                                  {m}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </section>
 
           {/* Save */}

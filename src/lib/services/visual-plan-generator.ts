@@ -212,7 +212,7 @@ Return a JSON object with these exact keys:
       "emotion": "emotional tone for this moment",
       "cameraStyle": "lens, framing, movement",
       "image_prompt": "rich visual description of the still image — subject, setting, framing, light quality. Tool-agnostic, no style rules.",
-      "kling_prompt": "motion description — what physical movement occurs, camera action, pacing. Documentary realism, subtle movement only."
+      "kling_prompt": "cinematic motion description using this format: [Director style tag] + camera movement + subject movement + emotional micro-beat + sound note. Director tags: [Spielberg] = slow push-in on a face during revelation, hold on the reaction, silence does the work; [Fincher] = cold precise dolly, ordinary rendered ominous, controlled dread; [Scorsese] = motivated tracking shot following energy, dynamic but grounded; [Nolan] = dramatic hold then sudden reveal, scale contrast; [Villeneuve] = extreme wide to close, long silence, weight of empty space. Always end with a sound note, e.g. 'Sound: paper rustling against near-silence' or 'Sound: distant crowd murmur' or 'Sound: single slow breath'. For A-roll dialogue scenes, include the first spoken sentence."
     }
   ]
 }
@@ -220,7 +220,7 @@ Return a JSON object with these exact keys:
 IMPORTANT RULES:
 - Create one scene per script sentence. Map every sentence to a scene.
 - image_prompt: describe the subject, environment, framing, and lighting. DO NOT include "50mm", "documentary", "no watermarks", "16:9" — those are applied automatically by our pipeline.
-- kling_prompt: describe what moves and how (a hand, a glance, a breath), plus camera action (slow push-in, static hold, slow pan). Prioritize documentary realism with subtle, grounded movement. DO NOT include "stabilized camera", "no shake", "50mm" — those are applied automatically.
+- kling_prompt: Use the cinematic director-technique format from the schema. Choose the director tag that best matches the scene's emotional tone (revelation = Spielberg, dread = Fincher, energy = Scorsese, dramatic reveal = Nolan, quiet weight = Villeneuve). Always include a Sound note at the end. DO NOT include "stabilized camera", "no shake", "50mm" — those are applied automatically.
 - A-roll scenes should note direct eye contact with camera.
 - B-roll scenes should feel observational and candid.
 - Build an emotional arc across the scene sequence.
@@ -631,8 +631,22 @@ Return a JSON array (no wrapper object, no markdown fences):
 RULES:
 - All scenes are B-roll (observational, candid, no direct camera address).
 - image_prompt must describe the subject clearly — a person, object, or environment.
-- kling_prompt must describe subtle, grounded movement only.
-- Build emotional variety across the 3 new ideas.${input.avatarDescription ? "\n- Apply the same family visual consistency rules as the main plan." : ""}`;
+- Build emotional variety across the 3 new ideas.${input.avatarDescription ? "\n- Apply the same family visual consistency rules as the main plan." : ""}
+
+PATTERN INTERRUPTION REQUIREMENT:
+Every B-roll idea must be VISUALLY STRIKING — a moment that stops the viewer mid-scroll. Prioritize:
+• Shocking or emotionally loaded juxtapositions (check vs. funeral bill side by side)
+• Crowd dynamics with social tension (people whispering, heads turning, sideways glances)
+• Hands holding objects with financial or emotional weight (envelope, check, phone showing balance, bill)
+• Faces in raw unguarded micro-moments (disbelief transitioning to relief, silent grief, quiet shock)
+Avoid generic "elderly hands on coffee mug" type ideas unless the specific framing and action are cinematic.
+
+KLING PROMPT FORMAT:
+Use director-technique format: [Director tag] + camera movement + subject movement + emotional beat + sound note.
+Director tags: [Spielberg] = slow push-in on face during revelation; [Fincher] = cold precise dolly, controlled dread; [Scorsese] = motivated tracking shot; [Nolan] = dramatic hold then reveal; [Villeneuve] = long silence, weight of empty space.
+Example: "[Spielberg] Slow push-in as widow's fingers trace the check amount. She doesn't speak — the face says everything. Sound: single quiet exhale against near-silence."
+Example: "[Fincher] Cold static wide of funeral director sliding a bill across a desk. Subject's hand enters frame. Sound: paper on wood, clock ticking."
+Always end with a Sound note.`;
 
   const userPrompt = `Campaign:
 - Persona: ${input.campaign.personaId ?? "general"}

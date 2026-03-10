@@ -17,6 +17,7 @@ export interface SceneCard {
   useDocumentReference?: boolean; // Whether this scene uses a document reference image (auto-set by beat detectors)
   generatedVideoUrl?: string | null;  // Completed HeyGen talking video URL
   videoJobId?: string | null;         // HeyGen video_id for polling
+  characterIds?: string[];            // campaign_characters.id values for people in this scene
 }
 
 // ── Visual plan ────────────────────────────────────────────────────────────

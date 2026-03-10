@@ -3,6 +3,7 @@ import { getCampaignById } from "@/lib/repositories/campaign-repo";
 import { getScriptsByCampaign } from "@/lib/repositories/script-repo";
 import { getLatestVisualPlanForScript, getGeneratedAssetsForCampaign } from "@/lib/repositories/visual-plan-repo";
 import { getAvatarById } from "@/lib/repositories/avatar-repo";
+import { getCharactersByCampaign } from "@/lib/repositories/campaign-character-repo";
 import { VisualPlanPanel } from "@/components/visual-plan/visual-plan-panel";
 
 interface VisualPlanPageProps {
@@ -21,10 +22,11 @@ export default async function VisualPlanPage({ params }: VisualPlanPageProps) {
 
   const defaultScript = scripts[0] ?? null;
 
-  const [initialPlan, avatar, initialAssets] = await Promise.all([
+  const [initialPlan, avatar, initialAssets, initialCharacters] = await Promise.all([
     defaultScript ? getLatestVisualPlanForScript(id, defaultScript.id) : Promise.resolve(null),
     campaign.avatarId ? getAvatarById(campaign.avatarId) : Promise.resolve(null),
     getGeneratedAssetsForCampaign(id),
+    getCharactersByCampaign(id),
   ]);
 
   return (
@@ -35,6 +37,7 @@ export default async function VisualPlanPage({ params }: VisualPlanPageProps) {
       initialScriptId={defaultScript?.id ?? null}
       initialAvatar={avatar}
       initialAssets={initialAssets}
+      initialCharacters={initialCharacters}
     />
   );
 }

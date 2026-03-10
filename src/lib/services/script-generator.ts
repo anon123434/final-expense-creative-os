@@ -17,6 +17,7 @@ import type { Campaign } from "@/types";
 import type { AdConcept } from "@/types";
 import { isProviderConfigured, getProvider } from "@/lib/llm";
 import type { TriggerSequenceContext } from "@/lib/services/trigger-sequencer";
+import type { HookVariant } from "@/types/script";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -259,4 +260,117 @@ export async function generateScript(input: GenerateScriptInput): Promise<Genera
   const id = input.concept.id;
   const idx = id.charCodeAt(id.length - 1) % MOCK_VARIANTS.length;
   return MOCK_VARIANTS[idx](input);
+}
+
+// ── Hook Variation Generator ──────────────────────────────────────────────
+
+export interface GenerateHookVariationsInput {
+  campaign: Campaign;
+  concept: AdConcept;
+  currentHook: string;
+  body: string;
+  cta: string;
+}
+
+const HOOK_VARIATION_SYSTEM = `You are an elite direct-response copywriter specialising in final expense insurance video ads.
+
+Your job: generate 5 alternative HOOK lines for an existing script. Each hook uses a distinct psychological pattern.
+
+The 5 winning hook patterns for final expense ads:
+
+1. SHOCK REVELATION — Something unbelievable happened and the viewer is hearing it for the first time.
+   Example: "People were shocked when they learned I paid nothing for my husband's funeral."
+   Triggers: curiosity, social proof, disbelief
+
+2. CHECK / MONEY REVEAL — The speaker received unexpected money and is about to explain how.
+   Example: "When my husband died, I got a check for $25,000. I had no idea it was coming."
+   Triggers: curiosity, value disparity, financial relief
+
+3. WHISPER / SOCIAL TENSION — The viewer overhears a secret conversation about the speaker.
+   Example: "I could hear them whispering at my husband's funeral: 'Where's she getting this kind of money?'"
+   Triggers: social proof, insider knowledge, status
+
+4. DEADLINE PANIC — A financial ultimatum or time pressure is already in motion.
+   Example: "The funeral home gave me 48 hours to come up with $15,000 or they wouldn't release the body."
+   Triggers: urgency, loss aversion, financial dread
+
+5. INSIDER SECRET — The speaker knows something most people don't, and is about to share it.
+   Example: "My son works for the state and he just told me something unbelievable."
+   Triggers: authority, insider knowledge, scarcity
+
+RULES:
+- Every hook is spoken first-person direct-to-camera. No stage directions, no narration.
+- Each hook must be 1-2 sentences maximum. 15-25 words.
+- Hooks must fit naturally with the body and CTA provided.
+- Tailor hooks to the campaign persona and concept.
+- Never say "insurance" — use "benefit", "coverage", "protection", or "plan".
+- Each hook gets 3 visual_moments — specific, cinematic, attention-grabbing B-roll ideas that pair with this hook. Focus on pattern interruption: the image must make someone stop scrolling. Examples: "Close-up of widow's hand holding a $25,000 check", "Funeral crowd whispering behind hands, long lens compression", "Funeral director sliding a bill across a desk, close-up on the total".
+
+Return a JSON array of exactly 5 objects (no wrapper, no markdown fences):
+[
+  {
+    "hook": "exact spoken hook text",
+    "hookType": "Shock Revelation",
+    "emotionalCore": "one-sentence description of the psychological engine",
+    "triggers": ["trigger1", "trigger2", "trigger3"],
+    "visualMoments": [
+      "specific cinematic b-roll moment 1",
+      "specific cinematic b-roll moment 2",
+      "specific cinematic b-roll moment 3"
+    ]
+  }
+]`;
+
+const HOOK_VARIATION_MOCK: HookVariant[] = [
+  { hook: "People were shocked when they learned I paid nothing for my husband's funeral.", hookType: "Shock Revelation", emotionalCore: "Viewer discovers a surprising outcome that defies expectation", triggers: ["curiosity", "social proof", "disbelief"], visualMoments: ["Funeral crowd whispering, long lens compression — faces half-visible", "Funeral home receipt stamped PAID IN FULL", "Widow's composed face amid mourners who look concerned"] },
+  { hook: "When my husband died, I got a check for $25,000. I had no idea it was coming.", hookType: "Check / Money Reveal", emotionalCore: "Unexpected financial windfall creates disbelief resolving into relief", triggers: ["curiosity", "value disparity", "financial relief"], visualMoments: ["Widow's hand slowly opening an envelope — close-up on the check amount", "Check held at arm's length, expression shifting from shock to quiet tears", "Stack of funeral bills beside a check — the check is larger"] },
+  { hook: "I could hear them whispering at my husband's funeral: 'Where's she getting this kind of money?'", hookType: "Whisper / Social Tension", emotionalCore: "Social proof through overheard conversation creates insider status", triggers: ["social proof", "insider knowledge", "status"], visualMoments: ["Two mourners whispering behind hands — shot from widow's POV", "Widow walking calmly through concerned crowd", "Close-up of two faces turning to look — surprise registering"] },
+  { hook: "The funeral home gave me 48 hours to come up with $15,000 or they wouldn't release the body.", hookType: "Deadline Panic", emotionalCore: "Visceral financial deadline creates immediate empathetic dread", triggers: ["urgency", "loss aversion", "financial dread"], visualMoments: ["Funeral director sliding a bill across a dark desk — close-up on the total", "Clock on a funeral home wall — late afternoon shadows growing", "Phone showing a bank balance — the number is not enough"] },
+  { hook: "My son works for the state and he told me something most people over 60 will never find out.", hookType: "Insider Secret", emotionalCore: "Authority figure shares restricted knowledge, creating exclusivity", triggers: ["authority", "insider knowledge", "scarcity"], visualMoments: ["Adult son leaning in to whisper to mother at kitchen table — confidential framing", "Official-looking document on a table, partially obscured", "Mother's face shifting from confusion to quiet understanding"] },
+];
+
+export async function generateHookVariations(
+  input: GenerateHookVariationsInput
+): Promise<HookVariant[]> {
+  if (!isProviderConfigured("generateScript")) {
+    await new Promise((r) => setTimeout(r, 800));
+    return HOOK_VARIATION_MOCK;
+  }
+
+  const userPrompt = `Campaign:
+- Persona: ${input.campaign.personaId ?? "general"}
+- Emotional tone: ${input.campaign.emotionalTone ?? "warm and empathetic"}
+- Phone: ${input.campaign.phoneNumber ?? ""}
+- Benefit: ${input.campaign.benefitAmount ?? "$25,000"}
+- Concept: ${input.concept.title ?? ""} — ${input.concept.oneSentenceAngle ?? ""}
+
+Current hook (do NOT repeat this — generate 5 different alternatives):
+${input.currentHook}
+
+Body (all hooks must set up this body naturally):
+${input.body}
+
+CTA:
+${input.cta}
+
+Generate 5 alternative hooks now. One per pattern type. Return JSON only.`;
+
+  const provider = getProvider("generateScript");
+  const result = await provider.generate({
+    system: HOOK_VARIATION_SYSTEM,
+    prompt: userPrompt,
+    temperature: 0.9,
+  });
+
+  const trimmed = result.text.trim().replace(/^```json?\s*/i, "").replace(/```\s*$/, "");
+  const parsed = JSON.parse(trimmed) as Array<Record<string, unknown>>;
+  if (!Array.isArray(parsed)) throw new Error("Hook variation response was not an array.");
+
+  return parsed.map((item) => ({
+    hook: String(item.hook ?? ""),
+    hookType: String(item.hookType ?? ""),
+    emotionalCore: String(item.emotionalCore ?? ""),
+    triggers: Array.isArray(item.triggers) ? item.triggers.map(String) : [],
+    visualMoments: Array.isArray(item.visualMoments) ? item.visualMoments.map(String) : [],
+  }));
 }

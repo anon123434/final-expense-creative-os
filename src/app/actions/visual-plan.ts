@@ -8,6 +8,7 @@ import { upsertVisualPlan, getLatestVisualPlanForScript } from "@/lib/repositori
 import { generateVisualPlan, generateMoreBRoll } from "@/lib/services/visual-plan-generator";
 import { generateSingleImage, uploadGeneratedImage } from "@/lib/services/gemini-image";
 import { hasGeminiKey, resolveHeyGenApiKey, getSupabaseUrl } from "@/lib/config/env";
+import { getCharactersByIds } from "@/lib/repositories/campaign-character-repo";
 import type { FailResult } from "@/lib/result";
 import { actionFail, actionOk, type ActionResult } from "@/lib/result";
 import type { VisualPlan } from "@/types";
@@ -72,7 +73,8 @@ export async function generateSceneImageAction(
   sceneIndex: number,
   imagePrompt: string,
   avatarId?: string | null,
-  documentReferenceUrl?: string | null
+  documentReferenceUrl?: string | null,
+  characterIds?: string[]
 ): Promise<ActionResult<{ url: string }>> {
   try {
     await loadUserKeys();
@@ -105,6 +107,25 @@ export async function generateSceneImageAction(
       );
     }
 
+    // Fetch character reference images server-side
+    if (characterIds?.length) {
+      const characters = await getCharactersByIds(characterIds);
+      await Promise.all(
+        characters
+          .filter((c) => c.referenceImageUrl)
+          .map(async (c) => {
+            try {
+              const res = await fetch(c.referenceImageUrl!);
+              const buf = await res.arrayBuffer();
+              const mime = res.headers.get("content-type") ?? "image/jpeg";
+              refImages.push(`data:${mime};base64,${Buffer.from(buf).toString("base64")}`);
+            } catch {
+              // Skip characters that fail to fetch
+            }
+          })
+      );
+    }
+
     // Fetch document reference image if provided (must be first inlineData for Gemini grounding)
     let documentImage: string | null = null;
     if (documentReferenceUrl) {
@@ -127,8 +148,9 @@ export async function generateSceneImageAction(
     const documentAnchor = documentImage
       ? "CRITICAL: The first image provided is the EXACT document that must appear in this scene. Reproduce it photographically — same layout, same header, same dollar amount, same fields, same logo, same design. Do not invent or redesign any part of it. The check or letter in the generated image must be visually identical to the reference document image. Treat it as ground truth, not inspiration.\n\n"
       : "";
+    const hasCharacters = (characterIds?.length ?? 0) > 0;
     const identityNote = refImages.length > 0
-      ? "\n\nIMPORTANT: Maintain the exact same face and identity from the reference image."
+      ? `\n\nIMPORTANT: Maintain the exact same face and identity from the reference images.${hasCharacters ? " Additional reference images show other people who appear in this scene — reproduce each person's appearance accurately." : ""}`
       : "";
     const prompt = `${documentAnchor}${imagePrompt}${identityNote}`;
 
