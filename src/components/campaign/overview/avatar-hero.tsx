@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { User } from "lucide-react";
 import { useState, useEffect } from "react";
 
@@ -78,12 +77,11 @@ export function AvatarHero({ avatar, completedCount, totalStages }: AvatarHeroPr
             }}
           >
             {avatar?.imageUrl ? (
-              <Image
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
                 src={avatar.imageUrl}
                 alt={avatar.name}
-                fill
-                className="object-cover"
-                priority
+                className="h-full w-full object-cover"
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center">
