@@ -34,7 +34,7 @@ export function WorkspaceTabs({ campaignId }: WorkspaceTabsProps) {
   const basePath = `/campaigns/${campaignId}`;
 
   return (
-    <div className="border-b">
+    <div className="border-b print:hidden">
       <nav className="flex gap-1 px-6" aria-label="Campaign workspace tabs">
         {tabs.map((tab) => {
           const href = `${basePath}${tab.segment}`;

@@ -13,6 +13,7 @@ import { getArchetypeByKey } from "@/lib/seed/archetypes";
 import { getToneByKey } from "@/lib/seed/tones";
 import { getTriggerByKey } from "@/lib/seed/triggers";
 import { AvatarHero } from "@/components/campaign/overview/avatar-hero";
+import { PrintOverviewButton } from "@/components/campaign/overview/print-button";
 import { PipelineGrid } from "@/components/campaign/overview/pipeline-grid";
 import type { PipelineStage } from "@/components/campaign/overview/pipeline-grid";
 import { Check, X } from "lucide-react";
@@ -147,6 +148,7 @@ export default async function OverviewTab({ params }: OverviewPageProps) {
   ];
 
   const completedCount = stages.filter((s) => s.status === "completed").length;
+  const selectedConcept = concepts.find((c) => c.isSelected) ?? null;
 
   const hasBriefContent =
     persona ||
@@ -164,6 +166,20 @@ export default async function OverviewTab({ params }: OverviewPageProps) {
 
   return (
     <div className="space-y-6">
+      {/* Print button — hidden in actual print output */}
+      <div className="flex justify-end print:hidden">
+        <PrintOverviewButton />
+      </div>
+
+      {/* Print-only: document header */}
+      <div className="hidden print:block print-section mb-6 border-b border-gray-200 pb-4">
+        <p className="font-mono-data text-[9px] uppercase tracking-widest text-gray-400 mb-1">Campaign Overview</p>
+        <h1 className="font-display text-2xl font-bold text-gray-900">{campaign.title}</h1>
+        <p className="text-xs text-gray-400 mt-1">
+          Generated {new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
+        </p>
+      </div>
+
       {/* Hero avatar node */}
       <AvatarHero
         avatar={avatar}
@@ -237,7 +253,7 @@ export default async function OverviewTab({ params }: OverviewPageProps) {
 
             {/* Triggers */}
             {triggers.length > 0 && (
-              <div className="rounded-xl border border-white/6 bg-[#0d0d0d] px-4 py-3 sm:col-span-2">
+              <div className="rounded-xl border border-white/6 bg-[#0d0d0d] px-4 py-3 sm:col-span-2 print:hidden">
                 <p className="mb-2.5 font-mono-data text-[9px] uppercase tracking-widest text-muted-foreground/60">
                   Triggers
                 </p>
@@ -278,6 +294,121 @@ export default async function OverviewTab({ params }: OverviewPageProps) {
           </div>
         </div>
       )}
+
+      {/* ═══════════ PRINT-ONLY SECTIONS ═══════════ */}
+
+      {/* Selected Concept */}
+      {selectedConcept && (
+        <div className="hidden print:block print-section rounded-xl border border-gray-200 px-4 py-3">
+          <p className="mb-2 font-mono-data text-[9px] uppercase tracking-widest text-gray-400">Selected Concept</p>
+          <p className="font-display text-sm font-semibold text-gray-900">{selectedConcept.title}</p>
+          {selectedConcept.oneSentenceAngle && (
+            <p className="mt-1 text-xs text-gray-600">{selectedConcept.oneSentenceAngle}</p>
+          )}
+          {selectedConcept.hook && (
+            <div className="mt-2 border-t border-gray-100 pt-2">
+              <p className="font-mono-data text-[9px] uppercase tracking-wider text-gray-400">Hook</p>
+              <p className="mt-0.5 text-xs text-gray-700">{selectedConcept.hook}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Psychological Trigger Sequence */}
+      {triggers.filter((t) => t.included).length > 0 && (
+        <div className="hidden print:block print-section rounded-xl border border-gray-200 px-4 py-3">
+          <p className="mb-2 font-mono-data text-[9px] uppercase tracking-widest text-gray-400">
+            Psychological Trigger Sequence
+          </p>
+          <ol className="space-y-1.5">
+            {triggers
+              .filter((t) => t.included)
+              .sort(
+                (a, b) =>
+                  (getTriggerByKey(a.triggerKey)?.masterOrder ?? 99) -
+                  (getTriggerByKey(b.triggerKey)?.masterOrder ?? 99),
+              )
+              .map((t) => {
+                const seed = getTriggerByKey(t.triggerKey);
+                return seed ? (
+                  <li key={t.triggerKey} className="flex gap-2 text-xs text-gray-700">
+                    <span className="w-4 shrink-0 text-gray-400 tabular-nums">{seed.masterOrder}.</span>
+                    <span>
+                      <strong>{seed.label}</strong> — {seed.description}
+                    </span>
+                  </li>
+                ) : null;
+              })}
+          </ol>
+        </div>
+      )}
+
+      {/* Video Editing Guidelines */}
+      <div className="hidden print:block print-section rounded-xl border border-gray-200 px-4 py-3">
+        <p className="mb-2 font-mono-data text-[9px] uppercase tracking-widest text-gray-400">
+          Video Editing Guidelines
+        </p>
+        <ul className="list-inside list-disc space-y-1 text-xs text-gray-700">
+          <li>Use the Avatar IV video as the base layer</li>
+          <li>Place b-roll footage on top of the avatar strategically to illustrate key points</li>
+          <li>
+            Use psychological editing techniques (cuts on beats, reaction shots) to improve viewer retention
+          </li>
+          <li>Emphasize important words with font animation / kinetic text</li>
+          <li>Keep all edits clear and easy to follow — target audience is 55+ viewers</li>
+          <li>Maintain strong pacing and visual variation throughout to hold attention</li>
+        </ul>
+      </div>
+
+      {/* Export Requirements */}
+      <div className="hidden print:block print-section rounded-xl border-2 border-gray-800 px-4 py-3">
+        <p className="mb-2 font-mono-data text-[9px] uppercase tracking-widest text-gray-500">
+          Export Requirements — REQUIRED
+        </p>
+        <table className="w-full text-xs text-gray-700">
+          <tbody>
+            <tr className="border-b border-gray-100">
+              <td className="w-28 py-1 font-semibold">Duration</td>
+              <td className="py-1">EXACTLY 59 seconds &nbsp;OR&nbsp; EXACTLY 1 minute 29 seconds (1:29)</td>
+            </tr>
+            <tr className="border-b border-gray-100">
+              <td className="py-1 font-semibold">Resolution</td>
+              <td className="py-1">1080p</td>
+            </tr>
+            <tr className="border-b border-gray-100">
+              <td className="py-1 font-semibold">Bitrate</td>
+              <td className="py-1">12,000 Kbps</td>
+            </tr>
+            <tr className="border-b border-gray-100">
+              <td className="py-1 font-semibold">Codec</td>
+              <td className="py-1">H.264</td>
+            </tr>
+            <tr className="border-b border-gray-100">
+              <td className="py-1 font-semibold">Container</td>
+              <td className="py-1">MP4</td>
+            </tr>
+            <tr>
+              <td className="py-1 font-semibold">Frame Rate</td>
+              <td className="py-1">30fps</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      {/* Naming Convention */}
+      <div className="hidden print:block print-section rounded-xl border border-gray-200 px-4 py-3">
+        <p className="mb-2 font-mono-data text-[9px] uppercase tracking-widest text-gray-400">
+          File Naming Convention
+        </p>
+        <p className="text-xs text-gray-700 mb-1">
+          Format:{" "}
+          <code className="rounded bg-gray-100 px-1 font-mono">Name-Platform-Last4</code>
+        </p>
+        <p className="text-xs text-gray-500">
+          Example:{" "}
+          <code className="rounded bg-gray-100 px-1 font-mono">Martha-Roku-0026.mp4</code>
+        </p>
+      </div>
     </div>
   );
 }

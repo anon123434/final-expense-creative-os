@@ -42,7 +42,7 @@ export function WorkspaceHeader({ campaign }: WorkspaceHeaderProps) {
     : null;
 
   return (
-    <div className="border-b bg-background px-6 py-4">
+    <div className="border-b bg-background px-6 py-4 print:hidden">
       {/* Back link */}
       <Link
         href="/dashboard"

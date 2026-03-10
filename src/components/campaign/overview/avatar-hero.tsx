@@ -54,7 +54,7 @@ export function AvatarHero({ avatar: initialAvatar, campaignId, completedCount, 
       <div className="relative flex flex-col items-center pb-1 pt-4">
         {/* Ambient radial glow */}
         <div
-          className="pointer-events-none absolute inset-x-0 top-0"
+          className="print:hidden pointer-events-none absolute inset-x-0 top-0"
           style={{
             height: "280px",
             background:
@@ -66,12 +66,12 @@ export function AvatarHero({ avatar: initialAvatar, campaignId, completedCount, 
         <div className="relative z-10" style={{ width: 148, height: 148 }}>
           {/* Outer slow ring */}
           <div
-            className="ring-b absolute rounded-full border border-[#00E676]/15"
+            className="print:hidden ring-b absolute rounded-full border border-[#00E676]/15"
             style={{ inset: -30 }}
           />
           {/* Inner ring */}
           <div
-            className="ring-a absolute rounded-full border border-[#00E676]/25"
+            className="print:hidden ring-a absolute rounded-full border border-[#00E676]/25"
             style={{ inset: -15 }}
           />
 
@@ -98,7 +98,7 @@ export function AvatarHero({ avatar: initialAvatar, campaignId, completedCount, 
               </div>
             )}
             {/* Hover overlay */}
-            <div className={`absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/50 transition-opacity duration-200 ${imageUrl ? "opacity-0 group-hover:opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
+            <div className={`print:hidden absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/50 transition-opacity duration-200 ${imageUrl ? "opacity-0 group-hover:opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
               <Plus className="h-7 w-7 text-[#00E676]" strokeWidth={1.5} />
               <span className="font-mono-data text-[9px] uppercase tracking-widest text-[#00E676]">
                 {imageUrl ? "Change" : "Attach"}
@@ -107,9 +107,15 @@ export function AvatarHero({ avatar: initialAvatar, campaignId, completedCount, 
           </button>
         </div>
 
+        {/* Print-only: simplified avatar name */}
+        <div className="hidden print:block mt-3 text-center">
+          <p className="text-base font-bold text-gray-900">{avatar?.name ?? "No Avatar Selected"}</p>
+          <p className="text-xs text-gray-500">{avatar ? "Avatar Active" : "No Avatar Attached"}</p>
+        </div>
+
         {/* Avatar identity */}
         <div
-          className="relative z-10 mt-5 text-center"
+          className="print:hidden relative z-10 mt-5 text-center"
           style={{ animation: "fadeUp 0.5s 0.15s both" }}
         >
           <h2 className="font-display text-[22px] font-bold tracking-wide text-foreground">
@@ -122,7 +128,7 @@ export function AvatarHero({ avatar: initialAvatar, campaignId, completedCount, 
 
         {/* Pipeline progress bar */}
         <div
-          className="relative z-10 mt-6 w-full max-w-[280px]"
+          className="print:hidden relative z-10 mt-6 w-full max-w-[280px]"
           style={{ animation: "fadeUp 0.5s 0.25s both" }}
         >
           <div className="mb-2 flex items-center justify-between">
@@ -146,7 +152,7 @@ export function AvatarHero({ avatar: initialAvatar, campaignId, completedCount, 
 
         {/* Connector line to pipeline grid */}
         <div
-          className="relative z-10 mt-5 w-px rounded-full bg-gradient-to-b from-[#00E676]/35 to-transparent"
+          className="print:hidden relative z-10 mt-5 w-px rounded-full bg-gradient-to-b from-[#00E676]/35 to-transparent"
           style={{ animation: "connectorDraw 0.4s 0.55s both" }}
         />
       </div>

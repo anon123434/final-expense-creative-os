@@ -15,7 +15,7 @@ export interface PipelineStage {
 
 export function PipelineGrid({ stages }: { stages: PipelineStage[] }) {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <div className="print:hidden grid grid-cols-2 gap-3 sm:grid-cols-4">
       {stages.map((stage, i) => (
         <PipelineCard key={stage.id} stage={stage} index={i} />
       ))}

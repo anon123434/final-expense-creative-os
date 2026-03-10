@@ -10,7 +10,9 @@ export default function AuthenticatedLayout({
     <div className="flex h-screen overflow-hidden">
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
-        <Header />
+        <div className="print:hidden">
+          <Header />
+        </div>
         <main className="flex-1 overflow-y-auto">{children}</main>
       </div>
     </div>

@@ -148,3 +148,73 @@
     font-family: 'JetBrains Mono', ui-monospace, monospace;
   }
 }
+
+/* ─── Print / PDF Export ─────────────────────────────────────────────────── */
+@media print {
+  @page {
+    size: letter;
+    margin: 0.65in 0.75in;
+  }
+
+  /* Full page reset: dark theme → white */
+  html,
+  body {
+    background: white !important;
+    color: #111 !important;
+  }
+  body > * {
+    overflow: visible !important;
+  }
+
+  /* All dark-themed backgrounds → white */
+  [class*="bg-[#"],
+  [class*="bg-card"],
+  [class*="bg-background"],
+  [class*="bg-sidebar"],
+  [class*="bg-muted"] {
+    background: white !important;
+  }
+
+  /* Neon green accent → readable dark green */
+  [class*="text-[#00E676]"] {
+    color: #006633 !important;
+  }
+  [class*="border-[#00E676]"] {
+    border-color: #006633 !important;
+  }
+
+  /* Remove all glow, shadow, and motion */
+  *,
+  *::before,
+  *::after {
+    box-shadow: none !important;
+    text-shadow: none !important;
+    animation: none !important;
+    transition: none !important;
+  }
+
+  /* Card borders → light gray */
+  [class*="border-white"],
+  [class*="border-border"] {
+    border-color: #e0e0e0 !important;
+  }
+
+  /* Text color resets */
+  [class*="text-muted"] {
+    color: #555 !important;
+  }
+  [class*="text-foreground"] {
+    color: #111 !important;
+  }
+  [class*="text-cyan"] {
+    color: #0066aa !important;
+  }
+
+  /* Avoid page breaks inside cards and print sections */
+  .rounded-xl,
+  .pipeline-card,
+  .print-section {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+}
