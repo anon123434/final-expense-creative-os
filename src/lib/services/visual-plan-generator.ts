@@ -567,10 +567,6 @@ function mockVisualPlan(input: GenerateVisualPlanInput): GeneratedVisualPlan {
     useAvatarReference: true,
   });
 
-  // Always append check and approval letter scenes
-  const docScenes = buildDocumentScenes(sceneNumber + 1, avatarPrefix);
-  scenes.push(...docScenes);
-
   return {
     overallDirection,
     baseLayer,
@@ -580,45 +576,62 @@ function mockVisualPlan(input: GenerateVisualPlanInput): GeneratedVisualPlan {
   };
 }
 
-// ── Document scenes (always appended) ────────────────────────────────────
-// The check and approval letter scenes are appended to every visual plan.
+// ── Document scenes (always guaranteed) ──────────────────────────────────
+// Ensures every visual plan contains at least one check-holding scene and
+// one approval-letter scene. Applied to all generation paths (AI + mock).
 // useDocumentReference: true signals the scene card to show the upload UI.
 
-function buildDocumentScenes(startNumber: number, avatarPrefix: string): SceneCard[] {
-  return [
-    {
-      sceneNumber: startNumber,
+function ensureDocumentScenes(
+  result: GeneratedVisualPlan,
+  avatarDescription: string | null | undefined
+): GeneratedVisualPlan {
+  const avatarPrefix = avatarDescription ? `${avatarDescription}. ` : "";
+
+  const hasCheck = result.scenes.some((s) =>
+    isCheckHoldingScene(s.imagePrompt + " " + s.shotIdea + " " + s.lineReference)
+  );
+  const hasApproval = result.scenes.some((s) =>
+    isApprovalLetterScene(s.imagePrompt + " " + s.shotIdea + " " + s.lineReference)
+  );
+
+  if (hasCheck && hasApproval) return result;
+
+  const lastNum = Math.max(...result.scenes.map((s) => s.sceneNumber), 0);
+  const toAdd: SceneCard[] = [];
+
+  if (!hasCheck) {
+    toAdd.push({
+      sceneNumber: lastNum + toAdd.length + 1,
       lineReference: "Receiving the benefit check",
       sceneType: "B-roll",
       setting: "kitchen table, warm afternoon light",
-      shotIdea: "avatar holds insurance benefit check, side profile, quiet disbelief and relief",
+      shotIdea: "avatar holds insurance benefit check, back profile, quiet disbelief and relief",
       emotion: "quiet disbelief transitioning to acceptance, relief",
-      cameraStyle: "50mm medium shot, 3/4 angle, very slow push-in toward document",
-      imagePrompt: buildImagePrompt(
-        `${avatarPrefix}${CHECK_HOLDING_BEAT.imageDirection}`,
-        false
-      ),
+      cameraStyle: "50mm medium shot, over-the-shoulder, very slow push-in toward document",
+      imagePrompt: buildImagePrompt(`${avatarPrefix}${CHECK_HOLDING_BEAT.imageDirection}`, false),
       klingPrompt: buildKlingPrompt(CHECK_HOLDING_BEAT.klingMotion),
       useAvatarReference: true,
       useDocumentReference: true,
-    },
-    {
-      sceneNumber: startNumber + 1,
+    });
+  }
+
+  if (!hasApproval) {
+    toAdd.push({
+      sceneNumber: lastNum + toAdd.length + 1,
       lineReference: "Reading the approval letter",
       sceneType: "B-roll",
       setting: "living room, soft afternoon light",
       shotIdea: "avatar reads approval letter confirming coverage, shot from behind the shoulder — only partial side profile visible, focused and still",
       emotion: "focused reading transitioning to quiet acceptance",
       cameraStyle: "50mm medium shot, back shoulder view, very slow push-in toward document",
-      imagePrompt: buildImagePrompt(
-        `${avatarPrefix}${APPROVAL_LETTER_BEAT.imageDirection}`,
-        false
-      ),
+      imagePrompt: buildImagePrompt(`${avatarPrefix}${APPROVAL_LETTER_BEAT.imageDirection}`, false),
       klingPrompt: buildKlingPrompt(APPROVAL_LETTER_BEAT.klingMotion),
       useAvatarReference: true,
       useDocumentReference: true,
-    },
-  ];
+    });
+  }
+
+  return { ...result, scenes: [...result.scenes, ...toAdd] };
 }
 
 // ── Public API ───────────────────────────────────────────────────────────
@@ -634,7 +647,11 @@ export async function generateVisualPlan(
     ? input.cinematicHookStyle.scenes.length + 1
     : 1;
 
-  function prependCinematic(result: GeneratedVisualPlan): GeneratedVisualPlan {
+  function withDocuments(result: GeneratedVisualPlan): GeneratedVisualPlan {
+    return ensureDocumentScenes(result, input.avatarDescription);
+  }
+
+  function withCinematic(result: GeneratedVisualPlan): GeneratedVisualPlan {
     if (!input.cinematicHookStyle) return result;
     const cinematicScenes = buildCinematicScenes(input.cinematicHookStyle);
     const offset = cinematicScenes.length;
@@ -647,6 +664,8 @@ export async function generateVisualPlan(
     };
   }
 
+  const finalize = (result: GeneratedVisualPlan) => withCinematic(withDocuments(result));
+
   // ── OpenAI API path ──────────────────────────────────────────────────
   if (isProviderConfigured("generateVisualPlan")) {
     try {
@@ -656,7 +675,7 @@ export async function generateVisualPlan(
         maxTokens: 8192,
         temperature: 0.6,
       });
-      return prependCinematic(parseVisualPlanResponse(raw));
+      return finalize(parseVisualPlanResponse(raw));
     } catch (err) {
       console.error("[generateVisualPlan] OpenAI error, trying Claude fallback:", err);
     }
@@ -671,7 +690,7 @@ export async function generateVisualPlan(
         maxTokens: 8192,
         temperature: 0.6,
       });
-      return prependCinematic(parseVisualPlanResponse(raw));
+      return finalize(parseVisualPlanResponse(raw));
     } catch (err) {
       console.error("[generateVisualPlan] Claude error, falling back to mock:", err);
     }
@@ -679,7 +698,7 @@ export async function generateVisualPlan(
 
   // ── Mock fallback ────────────────────────────────────────────────────
   await new Promise((r) => setTimeout(r, 1400));
-  return prependCinematic(mockVisualPlan(input));
+  return finalize(mockVisualPlan(input));
 }
 
 export async function generateMoreBRoll(
