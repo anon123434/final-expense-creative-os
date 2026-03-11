@@ -6,6 +6,7 @@ import { getScriptsByCampaign } from "@/lib/repositories/script-repo";
 import { getAvatarById } from "@/lib/repositories/avatar-repo";
 import { upsertVisualPlan, getLatestVisualPlanForScript } from "@/lib/repositories/visual-plan-repo";
 import { generateVisualPlan, generateMoreBRoll } from "@/lib/services/visual-plan-generator";
+import { getCinematicHookStyleById } from "@/lib/seed/cinematic-hooks";
 import { generateSingleImage, uploadGeneratedImage } from "@/lib/services/gemini-image";
 import { hasGeminiKey, resolveHeyGenApiKey, getSupabaseUrl } from "@/lib/config/env";
 import { getCharactersByIds } from "@/lib/repositories/campaign-character-repo";
@@ -40,12 +41,18 @@ export async function generateVisualPlanAction(
     const avatar = campaign.avatarId ? await getAvatarById(campaign.avatarId) : null;
     const avatarDescription = avatar?.expandedPrompt ?? avatar?.prompt ?? null;
 
+    const cinematicHookStyleId = (script.metadata?.cinematicHookStyleId) as string | undefined;
+    const cinematicHookStyle = cinematicHookStyleId
+      ? getCinematicHookStyleById(cinematicHookStyleId)
+      : undefined;
+
     const generated = await generateVisualPlan({
       campaign,
       hook: script.hook ?? "",
       body: script.body ?? "",
       cta: script.cta ?? "",
       avatarDescription,
+      cinematicHookStyle,
     });
 
     const plan = await upsertVisualPlan({

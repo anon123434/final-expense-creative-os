@@ -14,6 +14,7 @@
 
 import type { Campaign } from "@/types";
 import type { SceneCard } from "@/types/scene";
+import type { CinematicHookStyle } from "@/types/cinematic-hook";
 import { buildImagePrompt, buildKlingPrompt, PHONE_LISTENING_BEAT, isPhoneListeningScene, CHECK_HOLDING_BEAT, isCheckHoldingScene, APPROVAL_LETTER_BEAT, isApprovalLetterScene } from "./prompt-style-guide";
 import { generateTextWithOpenAI, generateText as generateTextWithClaude, isProviderConfigured } from "@/lib/llm";
 import { isClaudeConfigured } from "@/lib/llm/providers/claude";
@@ -27,6 +28,8 @@ export interface GenerateVisualPlanInput {
   cta: string;
   /** Character description from the attached avatar (prompt or expandedPrompt). */
   avatarDescription?: string | null;
+  /** Optional pre-built cinematic cold open to prepend as scenes 1-N. */
+  cinematicHookStyle?: CinematicHookStyle;
 }
 
 export interface GeneratedVisualPlan {
@@ -288,23 +291,42 @@ AVATAR LIKENESS RULES (when an avatar description is provided):
 
 // ── Prompt builder ───────────────────────────────────────────────────────
 
-function buildVisualPlanPrompt(input: GenerateVisualPlanInput): string {
+function buildVisualPlanPrompt(input: GenerateVisualPlanInput, startSceneNum = 1): string {
   const { campaign, hook, body, cta, avatarDescription } = input;
   const avatarSection = avatarDescription
     ? `\nAvatar / Spokesperson likeness:\n${avatarDescription}\nUse verbatim in every A-roll image_prompt. Extract race, skin tone, and hair traits to maintain family visual consistency in B-roll scenes featuring family members or loved ones.\n`
+    : "";
+  const sceneNumberNote = startSceneNum > 1
+    ? `\nNote: Scenes ${1} through ${startSceneNum - 1} are pre-built cinematic intro scenes. Number your scenes starting at ${startSceneNum}.\n`
     : "";
   return `Campaign:
 - Persona: ${campaign.personaId ?? "general"}
 - Emotional tone: ${campaign.emotionalTone ?? "warm and empathetic"}
 - Duration target: ${campaign.durationSeconds ?? 30}s
 - Phone: ${campaign.phoneNumber ?? "1-800-555-0100"}
-${avatarSection}
+${avatarSection}${sceneNumberNote}
 Script:
 HOOK: ${hook}
 BODY: ${body}
 CTA: ${cta}
 
 Create a scene-by-scene visual plan now.`;
+}
+
+function buildCinematicScenes(style: CinematicHookStyle): SceneCard[] {
+  return style.scenes.map((scene, i) => ({
+    sceneNumber: i + 1,
+    lineReference: `[Cinematic Intro: ${style.name}]`,
+    sceneType: "B-roll" as const,
+    setting: scene.sceneLabel,
+    shotIdea: scene.rawImagePrompt.slice(0, 80) + "…",
+    emotion: "atmospheric",
+    cameraStyle: "cinematic documentary",
+    imagePrompt: buildImagePrompt(scene.rawImagePrompt, false),
+    klingPrompt: buildKlingPrompt(scene.rawKlingPrompt + " " + scene.soundNote),
+    useAvatarReference: false,
+    useDocumentReference: false,
+  }));
 }
 
 // ── Response parser ──────────────────────────────────────────────────────
@@ -608,16 +630,33 @@ function buildDocumentScenes(startNumber: number, avatarPrefix: string): SceneCa
 export async function generateVisualPlan(
   input: GenerateVisualPlanInput
 ): Promise<GeneratedVisualPlan> {
+  const startSceneNum = input.cinematicHookStyle
+    ? input.cinematicHookStyle.scenes.length + 1
+    : 1;
+
+  function prependCinematic(result: GeneratedVisualPlan): GeneratedVisualPlan {
+    if (!input.cinematicHookStyle) return result;
+    const cinematicScenes = buildCinematicScenes(input.cinematicHookStyle);
+    const offset = cinematicScenes.length;
+    return {
+      ...result,
+      scenes: [
+        ...cinematicScenes,
+        ...result.scenes.map((s) => ({ ...s, sceneNumber: s.sceneNumber + offset })),
+      ],
+    };
+  }
+
   // ── OpenAI API path ──────────────────────────────────────────────────
   if (isProviderConfigured("generateVisualPlan")) {
     try {
       const raw = await generateTextWithOpenAI({
         system: SYSTEM,
-        prompt: buildVisualPlanPrompt(input),
+        prompt: buildVisualPlanPrompt(input, startSceneNum),
         maxTokens: 8192,
         temperature: 0.6,
       });
-      return parseVisualPlanResponse(raw);
+      return prependCinematic(parseVisualPlanResponse(raw));
     } catch (err) {
       console.error("[generateVisualPlan] OpenAI error, trying Claude fallback:", err);
     }
@@ -628,11 +667,11 @@ export async function generateVisualPlan(
     try {
       const raw = await generateTextWithClaude({
         system: SYSTEM,
-        prompt: buildVisualPlanPrompt(input),
+        prompt: buildVisualPlanPrompt(input, startSceneNum),
         maxTokens: 8192,
         temperature: 0.6,
       });
-      return parseVisualPlanResponse(raw);
+      return prependCinematic(parseVisualPlanResponse(raw));
     } catch (err) {
       console.error("[generateVisualPlan] Claude error, falling back to mock:", err);
     }
@@ -640,7 +679,7 @@ export async function generateVisualPlan(
 
   // ── Mock fallback ────────────────────────────────────────────────────
   await new Promise((r) => setTimeout(r, 1400));
-  return mockVisualPlan(input);
+  return prependCinematic(mockVisualPlan(input));
 }
 
 export async function generateMoreBRoll(

@@ -62,6 +62,24 @@ export interface UpsertScriptData {
   metadata: Record<string, unknown> | null;
 }
 
+export async function updateScriptMetadata(
+  scriptId: string,
+  metadata: Record<string, unknown>
+): Promise<void> {
+  if (hasSupabaseConfig()) {
+    const supabase = await getSupabaseServerClient();
+    const { error } = await supabase
+      .from("scripts")
+      .update({ metadata })
+      .eq("id", scriptId);
+    if (error) throw new Error(error.message ?? "Failed to update script metadata.");
+    return;
+  }
+  // Mock: find and update in-memory
+  const row = mockScriptRows.find((r) => r.id === scriptId);
+  if (row) (row as unknown as Record<string, unknown>).metadata = metadata;
+}
+
 export async function upsertScript(data: UpsertScriptData): Promise<Script> {
   if (hasSupabaseConfig()) {
     const supabase = await getSupabaseServerClient();

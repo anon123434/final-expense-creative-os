@@ -1,14 +1,15 @@
 "use client";
 
 import { useState, useTransition, useRef } from "react";
-import { Sparkles, Save, AlertCircle, Mic, Copy, Check, Cpu, Bot, Lightbulb, ChevronDown, ChevronUp } from "lucide-react";
+import { Sparkles, Save, AlertCircle, Mic, Copy, Check, Cpu, Bot, Lightbulb, ChevronDown, ChevronUp, Clapperboard } from "lucide-react";
 import type { AdConcept, Script } from "@/types";
 import type { Campaign } from "@/types";
 import type { HookVariant } from "@/types/script";
 import type { ScriptTransform } from "@/lib/services/script-transforms";
 import { ConceptPicker } from "./concept-picker";
 import { QuickActions } from "./quick-actions";
-import { generateScriptAction, applyTransformAction, saveScriptAction, generateHookVariationsAction, applyHookAndRegenerateAction } from "@/app/actions/script";
+import { generateScriptAction, applyTransformAction, saveScriptAction, generateHookVariationsAction, applyHookAndRegenerateAction, setCinematicHookStyleAction } from "@/app/actions/script";
+import { CINEMATIC_HOOK_STYLES } from "@/lib/seed/cinematic-hooks";
 import { cn } from "@/lib/utils";
 import { ProviderBadge } from "@/components/ui/provider-badge";
 
@@ -58,11 +59,18 @@ export function ScriptPanel({
   const [scriptFlash, setScriptFlash] = useState(false);
   const scriptTextareaRef = useRef<HTMLTextAreaElement>(null);
 
+  const [currentScriptId, setCurrentScriptId] = useState<string | null>(initialScript?.id ?? null);
+  const [activeCinematicStyleId, setActiveCinematicStyleId] = useState<string | null>(
+    (initialScript?.metadata?.cinematicHookStyleId as string | undefined) ?? null
+  );
+  const [cinematicStyleOpen, setCinematicStyleOpen] = useState(false);
+
   const [generating, startGenerating] = useTransition();
   const [transforming, startTransforming] = useTransition();
   const [saving, startSaving] = useTransition();
   const [generatingHooks, startGeneratingHooks] = useTransition();
   const [applyingHook, startApplyingHook] = useTransition();
+  const [applyingCinematic, startApplyingCinematic] = useTransition();
 
   const loading = generating || transforming || saving || applyingHook;
 
@@ -88,6 +96,7 @@ export function ScriptPanel({
         setTaggedScript(result.taggedScript ?? "");
         setHasScript(true);
         setIsDirty(false);
+        setCurrentScriptId(result.script.id);
         setGenStatus({ scriptProvider: result.scriptProvider, voProvider: result.voProvider });
       } else {
         setError(result.error);
@@ -164,6 +173,7 @@ export function ScriptPanel({
         setTaggedScript(result.taggedScript ?? "");
         setHasScript(true);
         setIsDirty(false);
+        setCurrentScriptId(result.script.id);
         setGenStatus({ scriptProvider: result.scriptProvider, voProvider: result.voProvider });
         setHookLabOpen(false);
         // Scroll to textarea and flash it
@@ -176,6 +186,16 @@ export function ScriptPanel({
         setError(result.error);
       }
       setUsedHookIndex(null);
+    });
+  }
+
+  function handleSetCinematicStyle(styleId: string | null) {
+    if (!currentScriptId) return;
+    startApplyingCinematic(async () => {
+      const result = await setCinematicHookStyleAction(campaign.id, currentScriptId, styleId);
+      if (result.success) {
+        setActiveCinematicStyleId(styleId);
+      }
     });
   }
 
@@ -424,6 +444,114 @@ export function ScriptPanel({
                     ))}
                   </div>
                 )}
+              </div>
+            )}
+          </section>
+
+          {/* Cinematic Intros */}
+          <section className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Cinematic Intro
+                </p>
+                {activeCinematicStyleId && (
+                  <span className="inline-flex items-center rounded-full border border-[#00E676]/30 bg-[#00E676]/10 px-2 py-0.5 text-[10px] font-semibold text-[#00E676]">
+                    Active
+                  </span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setCinematicStyleOpen((v) => !v)}
+                disabled={!hasScript}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium",
+                  "border border-border hover:bg-accent",
+                  "disabled:cursor-not-allowed disabled:opacity-50"
+                )}
+              >
+                <Clapperboard className="h-3.5 w-3.5" />
+                {cinematicStyleOpen ? "Hide styles" : "Browse styles"}
+              </button>
+            </div>
+
+            {activeCinematicStyleId && (
+              <div className="flex items-center justify-between rounded-md border border-[#00E676]/20 bg-[#00E676]/5 px-3 py-2">
+                <div>
+                  <span className="text-xs font-medium text-[#00E676]">
+                    {CINEMATIC_HOOK_STYLES.find((s) => s.id === activeCinematicStyleId)?.name}
+                  </span>
+                  <span className="ml-2 text-[11px] text-muted-foreground">
+                    Cinematic intro will prepend to your visual plan
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleSetCinematicStyle(null)}
+                  disabled={applyingCinematic}
+                  className="text-[11px] text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
+                >
+                  Remove
+                </button>
+              </div>
+            )}
+
+            {cinematicStyleOpen && (
+              <div className="space-y-2">
+                {CINEMATIC_HOOK_STYLES.map((style) => (
+                  <div
+                    key={style.id}
+                    className={cn(
+                      "rounded-lg border p-3 space-y-2 transition-colors",
+                      activeCinematicStyleId === style.id
+                        ? "border-[#00E676]/30 bg-[#00E676]/5"
+                        : "bg-background"
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="space-y-1 flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-sm font-medium">{style.name}</span>
+                          <span className="text-[10px] text-muted-foreground">· {style.hookType}</span>
+                          <span className="text-[10px] text-muted-foreground">· ~{style.duration}s</span>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">{style.description}</p>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={applyingCinematic}
+                        onClick={() =>
+                          handleSetCinematicStyle(
+                            activeCinematicStyleId === style.id ? null : style.id
+                          )
+                        }
+                        className={cn(
+                          "shrink-0 inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium whitespace-nowrap transition-colors",
+                          "disabled:cursor-not-allowed disabled:opacity-50",
+                          activeCinematicStyleId === style.id
+                            ? "border border-destructive/30 text-destructive hover:bg-destructive/5"
+                            : "bg-primary text-primary-foreground hover:bg-primary/90"
+                        )}
+                      >
+                        {activeCinematicStyleId === style.id ? "Remove" : "Apply →"}
+                      </button>
+                    </div>
+                    <div className="border-t pt-2 space-y-1">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        Scenes ({style.scenes.length})
+                      </p>
+                      <ul className="space-y-0.5">
+                        {style.scenes.map((scene, j) => (
+                          <li key={j} className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
+                            <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-sky-400" />
+                            {scene.sceneLabel}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </section>

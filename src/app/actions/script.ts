@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getCampaignById, getTriggersByCampaign } from "@/lib/repositories/campaign-repo";
 import { getConceptsByCampaign } from "@/lib/repositories/concept-repo";
-import { upsertScript } from "@/lib/repositories/script-repo";
+import { upsertScript, updateScriptMetadata, getScriptsByCampaign } from "@/lib/repositories/script-repo";
 import { generateScript, generateHookVariations, generateScriptFromHook } from "@/lib/services/script-generator";
 import { buildTriggerSequence } from "@/lib/services/trigger-sequencer";
 import { generateVOScript } from "@/lib/services/vo-script-generator";
@@ -228,5 +228,33 @@ export async function saveScriptAction(
   } catch (err) {
     console.error("saveScriptAction:", err);
     return actionFail(err, "Failed to save script.");
+  }
+}
+
+// ── Cinematic hook style ────────────────────────────────────────────────────
+
+export async function setCinematicHookStyleAction(
+  campaignId: string,
+  scriptId: string,
+  styleId: string | null
+): Promise<ActionResult<{ scriptId: string }>> {
+  try {
+    const scripts = await getScriptsByCampaign(campaignId);
+    const script = scripts.find((s) => s.id === scriptId);
+    if (!script) return actionFail(null, "Script not found.");
+
+    const currentMeta = (script.metadata as Record<string, unknown> | null) ?? {};
+    const newMeta: Record<string, unknown> = { ...currentMeta };
+    if (styleId) {
+      newMeta.cinematicHookStyleId = styleId;
+    } else {
+      delete newMeta.cinematicHookStyleId;
+    }
+    await updateScriptMetadata(scriptId, newMeta);
+    revalidatePath(`/campaigns/${campaignId}/script`);
+    return actionOk({ scriptId });
+  } catch (err) {
+    console.error("setCinematicHookStyleAction:", err);
+    return actionFail(err, "Failed to set cinematic hook style.");
   }
 }
