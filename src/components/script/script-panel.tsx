@@ -287,30 +287,37 @@ export function ScriptPanel({
         <ProviderStatus scriptProvider={genStatus.scriptProvider} voProvider={genStatus.voProvider} />
       )}
 
-      {/* Script editor */}
+      {/* Script editor — always visible when a concept is selected */}
+      {conceptId && (
+        <section className="space-y-1.5">
+          <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Ad Script
+          </label>
+          <textarea
+            ref={scriptTextareaRef}
+            value={fullScript}
+            onChange={(e) => {
+              setFullScript(e.target.value);
+              setIsDirty(true);
+              setSaveStatus("idle");
+              if (e.target.value.trim()) setHasScript(true);
+            }}
+            disabled={loading}
+            rows={12}
+            placeholder={"Paste or type your script here…\n\nHook\n\nBody\n\nCall to action"}
+            className={cn(
+              "w-full resize-y rounded-md border bg-background px-3 py-2 text-sm leading-relaxed",
+              "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+              "disabled:cursor-not-allowed disabled:opacity-50 placeholder:text-muted-foreground/40",
+              "transition-[box-shadow] duration-300",
+              scriptFlash && "ring-2 ring-[#00E676]/60 border-[#00E676]/40"
+            )}
+          />
+        </section>
+      )}
+
       {hasScript && (
         <>
-          {/* Full script — single editable box */}
-          <section className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Ad Script
-            </label>
-            <textarea
-              ref={scriptTextareaRef}
-              value={fullScript}
-              onChange={(e) => { setFullScript(e.target.value); setIsDirty(true); setSaveStatus("idle"); }}
-              disabled={loading}
-              rows={12}
-              className={cn(
-                "w-full resize-y rounded-md border bg-background px-3 py-2 text-sm leading-relaxed",
-                "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
-                "disabled:cursor-not-allowed disabled:opacity-50",
-                "transition-[box-shadow] duration-300",
-                scriptFlash && "ring-2 ring-[#00E676]/60 border-[#00E676]/40"
-              )}
-            />
-          </section>
-
           {/* ElevenLabs tagged script — read-only preview */}
           {taggedScript && (
             <section className="space-y-1.5">
@@ -581,17 +588,6 @@ export function ScriptPanel({
             </button>
           </div>
         </>
-      )}
-
-      {/* Empty state */}
-      {!hasScript && !generating && conceptId && (
-        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-16 text-center">
-          <Sparkles className="mb-3 h-8 w-8 text-muted-foreground/40" />
-          <p className="text-sm font-medium">Ready to generate</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Click "Generate Script" to create a script and ElevenLabs preview.
-          </p>
-        </div>
       )}
 
       {!hasScript && !generating && !conceptId && (
