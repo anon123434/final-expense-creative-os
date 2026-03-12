@@ -153,7 +153,7 @@ export async function generateSceneImageAction(
     }
 
     const documentAnchor = documentImage
-      ? "CRITICAL: The first image provided is the EXACT document that must appear in this scene. Reproduce it photographically — same layout, same header, same dollar amount, same fields, same logo, same design. Do not invent or redesign any part of it. The check or letter in the generated image must be visually identical to the reference document image. Treat it as ground truth, not inspiration.\n\n"
+      ? "DOCUMENT REFERENCE: The first image is the exact check or letter that must appear in this scene. Copy its visual content faithfully — same layout, same header, same dollar amount, same fields, same logo, same design. Do not invent a different document.\n\nCRITICAL SIZE RULE: The document must appear at REALISTIC HUMAN SCALE — a normal paper check or letter held in a person's hands. It must occupy NO MORE than 15–20% of the total frame area. It is NOT the subject of the photo. The person holding it is the subject. Do NOT fill the frame with the document. Do NOT zoom in on the document alone. The person, their hands, and the surrounding environment must all be clearly visible around it. Think 'candid moment of someone reading their mail' — not 'close-up product shot of a check.'\n\n"
       : "";
     const hasCharacters = (characterIds?.length ?? 0) > 0;
     const identityNote = refImages.length > 0

@@ -112,13 +112,13 @@ export const CHECK_HOLDING_BEAT = {
    * Append to sceneDescription before passing to buildImagePrompt().
    */
   imageDirection:
-    "Over-the-shoulder shot from behind, camera positioned behind and slightly to the side of the avatar. " +
-    "We see the back of the avatar's shoulder filling the near left frame edge — the avatar is in back-profile, NOT side profile. " +
-    "The avatar holds a standard-sized paper check at natural arm distance, roughly at waist-to-chest height. " +
-    "The check is a realistic size — a normal bank check proportional to the person's hands, occupying roughly 15–20% of the frame. NOT oversized. NOT poster-sized. A real check fits in two hands. " +
-    "The check is slightly angled toward the camera so the amount is legible, but it does not dominate the frame. " +
-    "The avatar's partial side profile (jaw, cheek) is visible at the edge of frame, expression showing quiet disbelief transitioning to acceptance. " +
-    "Warm interior light. Medium shot.",
+    "Over-the-shoulder medium shot. Camera positioned behind and slightly to the side — we see the back of the avatar's shoulder filling the near left edge of frame. Avatar is in back-profile, NOT side profile. " +
+    "The avatar holds a standard paper check in both hands at natural reading distance, roughly waist-to-chest height. " +
+    "SCALE: The check is a real bank check — approximately 6 inches wide, fitting comfortably in two hands. It occupies roughly 15% of the frame. The check is small relative to the scene. It does NOT dominate the frame. It is NOT zoomed in on. It is NOT oversized or poster-sized. " +
+    "The person's back, shoulders, partial jaw and cheek, both arms, and the room behind them are all clearly visible. " +
+    "The check is angled slightly toward camera so the amount line is legible, but it does not fill or dominate. " +
+    "The avatar's expression — partial side profile at frame edge — shows quiet disbelief transitioning to acceptance. " +
+    "Warm interior light. Medium shot. The document is a prop the person is holding, NOT the hero of the image.",
 
   /**
    * Kling motion: full arc from stunned stillness → exhale of relief.
